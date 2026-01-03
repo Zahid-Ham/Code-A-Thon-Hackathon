@@ -1,75 +1,32 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const CosmicWeatherService = require('./services/CosmicWeatherService');
 require('dotenv').config(); // Load environment variables
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const NASA_API_KEY = process.env.NASA_API_KEY || 'DEMO_KEY';
 
+// Initialize Services
+const cosmicService = new CosmicWeatherService(NASA_API_KEY);
+
 // Enable CORS for frontend communication
 app.use(cors());
 app.use(express.json());
-
-// In-Memory Cache
-let cache = {
-  data: null,
-  lastFetch: 0
-};
-const CACHE_DURATION = 3600000; // 1 hour in ms
 
 app.get('/', (req, res) => {
   res.send('SpaceScope API is initializing... Status: Void Active.');
 });
 
-// Smart Proxy Route
+// Real-Time Cosmic Weather API
 app.get('/api/space-weather', async (req, res) => {
-  const now = Date.now();
-
-  // 1. Check Cache
-  if (cache.data && (now - cache.lastFetch < CACHE_DURATION)) {
-    console.log('[CACHE] Serving saved space weather data.');
-    return res.json(cache.data);
-  }
-
-  // 2. Fetch from NASA
   try {
-    console.log('[API] Fetching new data from NASA DONKI...');
-    // Use the key from .env, fallback to DEMO_KEY if not set
-    const response = await axios.get(`https://api.nasa.gov/DONKI/FLR?startDate=2024-01-01&endDate=2024-02-01&api_key=${NASA_API_KEY}`, { timeout: 5000 });
-    
-    // Filter Data (Optimization: Send only what's needed)
-    const latestFlare = response.data[response.data.length - 1]; // Get most recent
-    
-    if (!latestFlare) throw new Error('No recent flare data');
-
-    const cleanData = {
-      isSimulation: false,
-      classType: latestFlare.classType || 'B1.0',
-      activeRegionNum: latestFlare.activeRegionNum || 0,
-      beginTime: latestFlare.beginTime || new Date().toISOString()
-    };
-
-    // Update Cache
-    cache.data = cleanData;
-    cache.lastFetch = now;
-    
-    return res.json(cleanData);
-
+    const data = await cosmicService.getUnifiedData();
+    res.json(data);
   } catch (error) {
-    console.error('[ERROR] NASA API failed or timed out:', error.message);
-    console.log('[FALLBACK] Engaging Simulation Mode.');
-    
-    // 3. Simulation Mode Fallback
-    // Return impressive dummy data so the UI always looks good
-    const simulationData = {
-      isSimulation: true,
-      classType: 'X1.2', // High Impact
-      activeRegionNum: 3576,
-      beginTime: new Date().toISOString()
-    };
-    
-    return res.json(simulationData);
+    console.error('[API] Failed to get cosmic weather data:', error.message);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
@@ -227,3 +184,4 @@ app.post('/api/star-chart', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running in the void on port ${PORT}`);
 });
+

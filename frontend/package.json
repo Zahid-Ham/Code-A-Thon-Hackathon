@@ -12,6 +12,7 @@
   "dependencies": {
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
+    "axios": "^1.13.2",
     "framer-motion": "^12.23.26",
     "lucide-react": "^0.562.0",
     "mapbox-gl": "^3.17.0",

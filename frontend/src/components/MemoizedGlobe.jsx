@@ -1,5 +1,6 @@
-import React, { memo, useState, useEffect } from 'react';
+import React, { memo, useState, useMemo } from 'react';
 import Globe from 'react-globe.gl';
+import { useCosmicWeather } from '../contexts/CosmicWeatherContext';
 
 const MemoizedGlobe = ({ 
     globeRef, 
@@ -10,56 +11,146 @@ const MemoizedGlobe = ({
     arcsData, 
     onEventClick 
 }) => {
-    const [points, setPoints] = useState([]);
+    const { weatherData, globalSeverity } = useCosmicWeather();
 
-    // Combine data for points if needed, or use labels/rings directly as passed
-    // User asked to render "Top 10 Active Events" -> passing sliced data from parent is cleaner, 
-    // but we can also ensure we don't render too much here.
-    
+    // --- Visual Configuration based on Severity ---
+    const config = useMemo(() => {
+        switch (globalSeverity) {
+        case 'HIGH':
+        case 'EXTREME':
+            return {
+            atmosphereColor: '#FF4500', // Reddish
+            atmosphereAltitude: 0.25,
+            polygonAltitude: 0.02
+            };
+        case 'MODERATE':
+            return {
+            atmosphereColor: '#FFD700', // Yellowish
+            atmosphereAltitude: 0.18,
+            polygonAltitude: 0.01
+            };
+        default:
+            return {
+            atmosphereColor: '#00F0FF', // Sci-Fi Blue
+            atmosphereAltitude: 0.15,
+            polygonAltitude: 0.005
+            };
+        }
+    }, [globalSeverity]);
+
+    // --- Aurora Data Generation ---
+    // Renders animated rings at the poles
+    const auroraRings = useMemo(() => {
+        const kp = weatherData?.auroraForecast?.kpIndex || 1;
+        const rings = [];
+        
+        // Show if Kp > 2
+        const baseColor = kp > 6 ? (t) => `rgba(255, 0, 255, ${1-t})` : (t) => `rgba(0, 255, 128, ${1-t})`; 
+        const intensity = Math.max(1, kp - 2); 
+
+        // North Pole
+        for (let i = 0; i < intensity; i++) {
+        rings.push({
+            lat: 82 - (i * 2),
+            lng: 0,
+            maxR: 10 + (i * 5),
+            propagationSpeed: 1 + (kp * 0.1),
+            repeatPeriod: 800 - (kp * 50),
+            color: baseColor
+        });
+        }
+        // South Pole
+        for (let i = 0; i < intensity; i++) {
+        rings.push({
+            lat: -82 + (i * 2), 
+            lng: 0, 
+            maxR: 10 + (i * 5),
+            propagationSpeed: 1 + (kp * 0.1),
+            repeatPeriod: 800 - (kp * 50),
+            color: baseColor
+        });
+        }
+
+        return rings;
+    }, [weatherData]);
+
+    // --- Radiation Alert Rings ---
+    const radiationRings = useMemo(() => {
+        const alerts = weatherData?.radiationAlerts || [];
+        if (alerts.length === 0) return [];
+
+        // Find max severity
+        const severityMap = { 'LOW': 1, 'MODERATE': 2, 'HIGH': 3, 'EXTREME': 4 };
+        let maxSev = 0;
+        alerts.forEach(a => {
+            const s = severityMap[a.severity] || 0;
+            if (s > maxSev) maxSev = s;
+        });
+
+        if (maxSev < 2) return [];
+
+        const colorFunc = (t) => {
+           if (maxSev === 4) return `rgba(255, 0, 0, ${1-t})`;
+           if (maxSev === 3) return `rgba(255, 69, 0, ${1-t})`;
+           return `rgba(255, 165, 0, ${1-t})`;
+        };
+        
+        return [{
+            lat: 0, lng: 0,
+            maxR: 180,
+            propagationSpeed: maxSev * 2,
+            repeatPeriod: 2000 / maxSev,
+            color: colorFunc
+        }];
+    }, [weatherData]);
+
+    // Combine hazard events with localized rings
+    const allRings = useMemo(() => [...hazardEvents, ...auroraRings, ...radiationRings], [hazardEvents, auroraRings, radiationRings]);
+
+
     return (
         <Globe
             ref={globeRef}
             backgroundColor="rgba(0,0,0,0)"
-            // Optimization: Use a potentially lower res image if available, or just rely on these settings
             globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
             
-            // Optimization: Lower atmosphere altitude
-            atmosphereAltitude={0.15}
-            atmosphereColor="#00F0FF"
+            // Dynamic Atmosphere
+            atmosphereAltitude={config.atmosphereAltitude}
+            atmosphereColor={config.atmosphereColor}
 
-            // Polygons (Gold Land)
+            // Polygons
             polygonsData={polygons}
             polygonCapColor={() => 'rgba(255, 215, 0, 0.05)'}
             polygonSideColor={() => 'rgba(255, 215, 0, 0.1)'}
             polygonStrokeColor={() => '#FFD700'}
-            polygonAltitude={0.005}
+            polygonAltitude={config.polygonAltitude}
 
             // Graticules
             showGraticules={true}
             graticulesColor="rgba(0, 240, 255, 0.2)"
 
-            // Optimization: Limit labels/points
+            // Labels (Major Events)
             labelsData={majorEvents}
             labelLat={d => d.lat}
             labelLng={d => d.lng}
             labelText={d => d.label}
             labelColor={d => d.color}
-            labelDotRadius={0.5} // Optimization: Smaller dots
+            labelDotRadius={0.5} 
             labelSize={1.8}
-            labelResolution={1} // Optimization: Lower resolution for text
+            labelResolution={1} 
             onLabelClick={onEventClick}
 
-            // Rings
-            ringsData={hazardEvents}
+            // Rings (Hazards + Cosmic Weather)
+            ringsData={allRings}
             ringLat={d => d.lat}
             ringLng={d => d.lng}
-            ringColor={() => '#FF4500'}
-            ringMaxRadius={3}
-            ringPropagationSpeed={2}
-            ringRepeatPeriod={800}
+            ringColor={d => d.color || '#FF4500'} 
+            ringMaxRadius={d => d.maxR || d.ringMaxRadius || 3}
+            ringPropagationSpeed={d => d.propagationSpeed || d.ringPropagationSpeed || 2}
+            ringRepeatPeriod={d => d.repeatPeriod || d.ringRepeatPeriod || 800}
             onRingClick={onEventClick}
             
-            // HTML Markers (User Location)
+            // HTML Markers
             htmlElementsData={userLocation ? [{ ...userLocation, type: 'USER' }] : []}
             htmlLat={d => d.lat}
             htmlLng={d => d.lng}
@@ -77,15 +168,18 @@ const MemoizedGlobe = ({
             arcDashAnimateTime={1500}
             arcStroke={0.5}
 
-            // Optimization: Wait for ready (Logic handled by parent loader usually, but globe handles texture loading)
             onGlobeReady={() => console.log('Globe Ready')}
         />
     );
 };
 
 // Optimization: React.memo logic
-// Only re-render if essential props change
 export default memo(MemoizedGlobe, (prevProps, nextProps) => {
+    // Note: We are now using context inside, so memo might need to be less strict 
+    // or we accept that context updates will trigger re-renders regardless of props.
+    // However, fast context updates (animations) might be heavy. 
+    // Ideally we pass weather data as props if we want strict memo control, 
+    // but connecting to context here is easiest for now.
     return (
         prevProps.polygons === nextProps.polygons &&
         prevProps.majorEvents === nextProps.majorEvents &&
