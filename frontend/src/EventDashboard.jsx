@@ -1,11 +1,12 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, X, Calendar, ArrowRight, Satellite, Crosshair, Map, Play, Pause, SkipForward, SkipBack, Wind, Thermometer, Cloud } from 'lucide-react';
+import { MapPin, X, Calendar, ArrowRight, Satellite, Crosshair, Map, Play, Pause, SkipForward, SkipBack, Wind, Thermometer, Cloud, Eye } from 'lucide-react';
 import Starfield from './components/Starfield';
 import SkyVisibilitySlider from './components/SkyVisibilitySlider';
 import MissionTimeline from './components/MissionTimeline';
 import MemoizedGlobe from './components/MemoizedGlobe';
 import RocketOverlay from './components/RocketOverlay';
+import ISSTracker from './components/ISSTracker';
 
 const EventDashboard = () => {
     const globeEl = useRef();
@@ -141,7 +142,16 @@ const EventDashboard = () => {
                 );
                 uLat = pos.coords.latitude;
                 uLng = pos.coords.longitude;
-                setUserLocation({ lat: uLat, lng: uLng });
+                setUserLocation({ lat: uLat, lng: uLng, city: 'Unknown Sector' });
+
+                // Reverse Geocode
+                fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${uLat}&longitude=${uLng}&localityLanguage=en`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.city || data.locality) {
+                             setUserLocation(prev => ({ ...prev, city: data.city || data.locality }));
+                        }
+                    });
             } catch (e) {
                 console.log('Location denied/failed');
             }
@@ -233,6 +243,13 @@ const EventDashboard = () => {
         if (globeEl.current) globeEl.current.controls().autoRotate = true;
     };
 
+    // Auto-Fetch Local Weather when User Location is found
+    useEffect(() => {
+        if (userLocation) {
+             fetchWeather(userLocation.lat, userLocation.lng);
+        }
+    }, [userLocation]);
+
     return (
         <div className="relative min-h-screen text-white bg-[#050B14] font-sans overflow-hidden">
             <Starfield />
@@ -242,7 +259,7 @@ const EventDashboard = () => {
             <header className="absolute top-0 left-0 w-full p-6 flex justify-between items-center z-50 pointer-events-none">
                 <div className="flex items-center gap-6">
                     <button 
-                        onClick={() => window.location.href = '/'} // Simple navigation for now, or use useNavigate if passed correctly
+                        onClick={() => window.location.href = '/'} // Simple navigation for now
                         className="pointer-events-auto p-2 rounded-full border border-white/20 hover:bg-white/10 text-white/60 hover:text-white transition-colors"
                     >
                          <ArrowRight className="rotate-180" size={24} />
@@ -258,11 +275,61 @@ const EventDashboard = () => {
                     <div className="glass-panel px-4 py-2 rounded-full flex items-center gap-2 pointer-events-auto">
                         <Crosshair size={16} className="text-green-400 animate-pulse" />
                         <span className="text-xs font-mono text-green-400">
-                             LOC: {userLocation.lat.toFixed(2)}, {userLocation.lng.toFixed(2)}
+                             LOC: {userLocation.city ? userLocation.city.toUpperCase() : 'DETECTING...'} // {userLocation.lat.toFixed(2)}, {userLocation.lng.toFixed(2)}
                         </span>
                     </div>
                 )}
             </header>
+
+            {/* Local Command Center - Always Visible Left Panel */}
+            <div className="absolute top-32 left-8 z-40 w-80 pointer-events-auto">
+                 {/* 1. Local Weather / Conditions */}
+                 {userLocation && weatherData && !selectedEvent && (
+                    <motion.div 
+                        initial={{ x: -100, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        className="glass-panel p-6 rounded-xl border-l-[3px] border-[#00F0FF] backdrop-blur-md bg-black/40 mb-4"
+                    >
+                        <h3 className="text-[#00F0FF] font-mono text-xs tracking-widest mb-4 flex items-center gap-2">
+                            <MapPin size={14} /> LOCAL SECTOR ANALYSIS
+                        </h3>
+                        
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex flex-col">
+                                <span className="text-5xl font-bold text-white tracking-tighter">{weatherData.temperature}°</span>
+                                <span className="text-xs text-white/40 font-mono mt-1">AMBIENT TEMP</span>
+                            </div>
+                            <div className="flex flex-col items-end">
+                                {getWeatherInfo(weatherData.weathercode).icon}
+                                <span className="text-sm font-bold text-[#00F0FF] mt-1 text-right">{getWeatherInfo(weatherData.weathercode).label}</span>
+                                <span className="text-[10px] text-white/40 uppercase tracking-widest">Sky Cond</span>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 border-t border-white/10 pt-4">
+                             <div>
+                                 <div className="flex items-center gap-2 text-white/80">
+                                     <Wind size={14} />
+                                     <span className="font-bold">{weatherData.windspeed} <span className="text-[10px]">km/h</span></span>
+                                 </div>
+                                 <div className="text-[9px] text-white/30 uppercase mt-1">Wind Velocity</div>
+                             </div>
+                             <div>
+                                 <div className="flex items-center gap-2 text-white/80">
+                                     <Eye size={14} />
+                                     <span className="font-bold">{(100 - (weatherData.weathercode > 3 ? 60 : 10))}%</span>
+                                 </div>
+                                 <div className="text-[9px] text-white/30 uppercase mt-1">Visibility Est.</div>
+                             </div>
+                        </div>
+                    </motion.div>
+                 )}
+
+                 {/* 2. ISS Tracker */}
+                 {userLocation && (
+                     <ISSTracker userLocation={userLocation} />
+                 )}
+            </div>
 
             {/* Main Globe with Visual Loader */}
             <div className="absolute inset-0 z-0 flex items-center justify-center">

@@ -243,7 +243,21 @@ app.post('/api/star-chart', async (req, res) => {
   }
 });
 
+// Visual Passes Endpoint
+app.get('/api/satellite/visual-passes/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { lat, lng, alt, days } = req.query;
+        
+        if (!lat || !lng) return res.status(400).json({ error: "Missing lat/lng" });
+
+        const passes = await atlasService.getVisualPasses(id, lat, lng, alt || 0, days || 10);
+        res.json(passes);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.listen(PORT, () => {
   console.log(`Server is running in the void on port ${PORT}`);
 });
-

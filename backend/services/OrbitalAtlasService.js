@@ -209,6 +209,36 @@ class OrbitalAtlasService {
     return result;
   }
 
+  async getVisualPasses(satId, lat, lng, alt = 0, days = 10, minVis = 300) {
+      if (!this.N2YO_API_KEY) throw new Error("Missing N2YO API Key");
+      
+      const cacheKey = `visual_${satId}_${lat}_${lng}`;
+      if (this.n2yoCache.has(cacheKey)) {
+          const cached = this.n2yoCache.get(cacheKey);
+          if (Date.now() - cached.timestamp < 1000 * 60 * 60) { // 1 hour cache for passes
+              return cached.data;
+          }
+      }
+
+      try {
+          const url = `https://api.n2yo.com/rest/v1/satellite/visualpasses/${satId}/${lat}/${lng}/${alt}/${days}/${minVis}/&apiKey=${this.N2YO_API_KEY}`;
+          const response = await axios.get(url, { timeout: 8000 });
+          
+          if (response.data && response.data.passes) {
+              const result = {
+                  info: response.data.info,
+                  passes: response.data.passes
+              };
+              this.n2yoCache.set(cacheKey, { timestamp: Date.now(), data: result });
+              return result;
+          }
+          return { info: response.data?.info, passes: [] };
+      } catch (err) {
+          console.error(`[OrbitalAtlas] Visual Pass fetch failed: ${err.message}`);
+          return { passes: [] };
+      }
+  }
+
   // ... (existing parseTLEs code) ...
 
   parseTLEs(rawTle, defaultCategory) {
