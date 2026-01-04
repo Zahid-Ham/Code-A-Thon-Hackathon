@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const CosmicWeatherService = require('./services/CosmicWeatherService');
+const OrbitalAtlasService = require('./services/OrbitalAtlasService');
 require('dotenv').config(); // Load environment variables
 
 const app = express();
@@ -10,6 +11,7 @@ const NASA_API_KEY = process.env.NASA_API_KEY || 'DEMO_KEY';
 
 // Initialize Services
 const cosmicService = new CosmicWeatherService(NASA_API_KEY);
+const orbitalService = new OrbitalAtlasService();
 
 // Enable CORS for frontend communication
 app.use(cors());
@@ -27,6 +29,41 @@ app.get('/api/space-weather', async (req, res) => {
   } catch (error) {
     console.error('[API] Failed to get cosmic weather data:', error.message);
     res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Orbital Atlas API
+app.get('/api/orbital-atlas/satellites', async (req, res) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit) : 2000;
+    const data = await orbitalService.getSatellites(limit);
+    res.json(data);
+  } catch (error) {
+    console.error('[API] Failed to get satellite data:', error.message);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.get('/api/orbital-atlas/live/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { lat, lng } = req.query;
+    const position = await orbitalService.getLivePosition(id, lat || 0, lng || 0);
+    res.json(position);
+  } catch (error) {
+    console.error(`[API] Failed to get live position for ${req.params.id}:`, error.message);
+    res.status(404).json({ error: 'Satellite not found or tracking failed' });
+  }
+});
+
+app.get('/api/orbital-atlas/satellite/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const details = await orbitalService.getSatelliteDetails(id);
+    res.json(details);
+  } catch (error) {
+    console.error(`[API] Failed to get details for ${req.params.id}:`, error.message);
+    res.status(404).json({ error: 'Satellite details not found' });
   }
 });
 

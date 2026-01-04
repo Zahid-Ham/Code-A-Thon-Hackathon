@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'; // Import Link and useNavi
 import {
   Map,
   Sun,
+  Globe,
   Clock,
   GraduationCap,
   Satellite,
@@ -14,7 +15,6 @@ import { useSound } from '../contexts/SoundContext'; // Import sound context
 
 // --- Configuration Data ---
 const modules = [
-// ... (modules config remains same, ensure links match routes)
   {
     id: 'celestial-command',
     title: 'Celestial Command',
@@ -29,16 +29,25 @@ const modules = [
     title: 'Solar Overwatch',
     description: 'Cosmic Weather / DONKI',
     icon: Sun,
-    angle: 72,
+    angle: 60,
     color: '#FFD700',
     link: '/solar'
+  },
+  {
+    id: 'orbital-atlas',
+    title: 'Orbital Atlas',
+    description: '3D Satellite Visualization',
+    icon: Globe,
+    angle: 120,
+    color: '#00BFFF',
+    link: '/orbital'
   },
   {
     id: 'chrono-archive',
     title: 'Chrono-Archive',
     description: 'Mission Timeline',
     icon: Clock,
-    angle: 144,
+    angle: 180,
     color: '#FF0055',
     link: '/timeline'
   },
@@ -47,7 +56,7 @@ const modules = [
     title: 'Academy',
     description: 'Learning & Quizzes',
     icon: GraduationCap,
-    angle: 216,
+    angle: 240,
     color: '#00FF99',
     link: '/academy'
   },
@@ -56,7 +65,7 @@ const modules = [
     title: 'Terra-Vision',
     description: 'Satellite Impact / Crop Health',
     icon: Satellite,
-    angle: 288,
+    angle: 300,
     color: '#AA00FF',
     link: '/terra'
   }

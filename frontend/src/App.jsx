@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import TheBridge from './components/TheBridge';
 import EventDashboard from './EventDashboard';
 import SolarOverwatch from './SolarOverwatch';
+import OrbitalAtlasView from './views/OrbitalAtlasView';
 import TransitionLayout from './components/TransitionLayout';
 import { SoundProvider } from './contexts/SoundContext';
 import { CosmicWeatherProvider } from './contexts/CosmicWeatherContext';
@@ -22,6 +23,7 @@ function App() {
                 <Route path="/" element={<TheBridge />} />
                 <Route path="/events" element={<EventDashboard />} />
                 <Route path="/solar" element={<SolarOverwatch />} />
+                <Route path="/orbital" element={<OrbitalAtlasView />} />
                 <Route path="/timeline" element={<ChronoArchivePlaceholder />} />
                 <Route path="/academy" element={<AcademyPlaceholder />} />
                 <Route path="/terra" element={<TerraVisionPlaceholder />} />
