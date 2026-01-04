@@ -107,8 +107,8 @@ app.get('/api/celestial-events', async (req, res) => {
     if (eonetCache.data && (now - eonetCache.lastFetch < 86400000)) {
        events = events.concat(eonetCache.data); // Use concat for arrays
     } else {
-       // Limit to 5 open events to avoid clutter
-       const eonetRes = await axios.get('https://eonet.gsfc.nasa.gov/api/v3/events?limit=5&status=open', { timeout: 5000 });
+       // Limit to 30 open events for a richer globe
+       const eonetRes = await axios.get('https://eonet.gsfc.nasa.gov/api/v3/events?limit=30&status=open', { timeout: 15000 });
        
        const liveHazards = eonetRes.data.events.map(evt => {
          // EONET geometries can be points or polygons. We take the first point.
@@ -131,7 +131,24 @@ app.get('/api/celestial-events', async (req, res) => {
     }
   } catch (err) {
     console.error('EONET Fetch Error:', err.message);
-    // Be silent about EONET errors, just show the rest
+    // FALLBACK: Inject simulated data so the user sees SOMETHING instead of nothing
+    console.warn('Switching to SIMULATION MODE for Earth Hazards.');
+    const fallbackHazards = [
+      // VOLCANOES
+      { id: 'sim_volcano_etna', title: '[SIMULATION] Mt. Etna Eruption', type: 'HAZARD', lat: 37.75, lng: 14.99, date: 'LIVE ALERT', description: 'Significant lava flow detected on SE crater.', visibility_score: 85 },
+      { id: 'sim_volcano_kilauea', title: '[SIMULATION] Kilauea Activity', type: 'HAZARD', lat: 19.42, lng: -155.29, date: 'LIVE ALERT', description: 'Summit eruption active within Halemaʻumaʻu crater.', visibility_score: 80 },
+      { id: 'sim_volcano_popocatenetl', title: '[SIMULATION] Popocatépetl Ash', type: 'HAZARD', lat: 19.02, lng: -98.62, date: 'LIVE ALERT', description: 'Exhalation of water vapor, gas, and light ash.', visibility_score: 75 },
+      
+      // WILDFIRES
+      { id: 'sim_fire_ca', title: '[SIMULATION] California Coastal Fire', type: 'HAZARD', lat: 34.05, lng: -118.24, date: 'LIVE ALERT', description: 'Rapidly spreading brush fire near Malibu canyon.', visibility_score: 90 },
+      { id: 'sim_fire_aus', title: '[SIMULATION] Bushfire - NSW', type: 'HAZARD', lat: -33.86, lng: 151.20, date: 'LIVE ALERT', description: 'High temperature anomalies detected in Blue Mountains.', visibility_score: 70 },
+      { id: 'sim_fire_amazon', title: '[SIMULATION] Amazon Thermal Anomaly', type: 'HAZARD', lat: -3.46, lng: -62.21, date: 'LIVE ALERT', description: 'Multiple heat signatures consistent with forest clearing.', visibility_score: 65 },
+
+      // ICEBERGS / SEVERE STORMS
+      { id: 'sim_storm_pacific', title: '[SIMULATION] Typhoon Vongfong', type: 'HAZARD', lat: 12.5, lng: 128.0, date: 'LIVE ALERT', description: 'Category 3 storm approaching Philippine Sea.', visibility_score: 95 },
+      { id: 'sim_iceberg_ant', title: '[SIMULATION] Iceberg A-76', type: 'HAZARD', lat: -75.0, lng: -50.0, date: 'LIVE ALERT', description: 'Large tabular iceberg calving event monitoring.', visibility_score: 60 }
+    ];
+    events = events.concat(fallbackHazards);
   }
 
   res.json(events);
@@ -144,7 +161,15 @@ app.get('/api/celestial-events', async (req, res) => {
 app.post('/api/star-chart', async (req, res) => {
   const { lat, lng, date, style } = req.body;
   
-  const authString = Buffer.from(`${process.env.ASTRONOMY_APP_ID}:${process.env.ASTRONOMY_APP_SECRET}`).toString('base64');
+  const appId = process.env.ASTRONOMY_APP_ID;
+  const appSecret = process.env.ASTRONOMY_APP_SECRET;
+
+  if (!appId || !appSecret) {
+    console.warn('[StarChart] Missing API Keys! Please add ASTRONOMY_APP_ID and ASTRONOMY_APP_SECRET to .env');
+    return res.status(500).json({ error: 'Missing Server-Side API Keys for Star Chart' });
+  }
+
+  const authString = Buffer.from(`${appId}:${appSecret}`).toString('base64');
   
   try {
     const response = await axios.post('https://api.astronomyapi.com/api/v2/studio/star-chart', {

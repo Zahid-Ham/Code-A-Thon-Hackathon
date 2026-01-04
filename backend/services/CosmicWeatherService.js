@@ -41,11 +41,16 @@ class CosmicWeatherService {
    */
   async _fetchFromNoaa(url) {
     try {
-      const response = await axios.get(url, { timeout: 5000 });
+      const response = await axios.get(url, { timeout: 15000 });
       return response.data;
     } catch (error) {
       console.error(`[CosmicWeatherService] Error fetching NOAA data:`, error.message);
-      return null;
+      // Fallback object to prevent crashes
+      return { 
+        "DateStamp": new Date().toISOString().split('T')[0],
+        "TimeStamp": "00:00:00",
+        "S": { "Scale": "0", "Text": "None (Offline)" }
+      };
     }
   }
 
