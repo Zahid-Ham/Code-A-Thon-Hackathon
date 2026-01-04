@@ -19,9 +19,14 @@
 *   **Aurora Forecast**: Predictive engine for northern lights visibility based on Kp index.
 *   **Impact Analysis**: Explains how solar events affect GPS and power grids.
 
-### 3. **The Bridge (Main Dashboard)**
+### 3. **Celestial Command (Earth Events)**
+*   **Event Dashboard**: Mapbox-powered visualization of Earth events like wildfires, icebergs, and volcanoes.
+*   **EONET Integration**: Track natural phenomena monitored by NASA satellites.
+*   **Global Monitoring**: See where cosmic and terrestrial events intersect.
+
+### 4. **The Bridge (Main Dashboard)**
 *   **Navigation System**: A sci-fi "Solar System" interface to warp between modules.
-*   **Event Dashboard**: Mapbox integration for tracking celestial events on Earth.
+
 
 ---
 

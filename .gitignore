@@ -5,7 +5,9 @@ yarn.lock
 pnpm-lock.yaml
 
 # Environmental Variables (Important to keep credentials safe)
-
+.env
+backend/.env
+frontend/.env
 
 # Build Outputs
 dist/
