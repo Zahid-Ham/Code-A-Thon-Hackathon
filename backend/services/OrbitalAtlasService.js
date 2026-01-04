@@ -209,34 +209,99 @@ class OrbitalAtlasService {
     return result;
   }
 
-  async getVisualPasses(satId, lat, lng, alt = 0, days = 10, minVis = 300) {
-      if (!this.N2YO_API_KEY) throw new Error("Missing N2YO API Key");
-      
-      const cacheKey = `visual_${satId}_${lat}_${lng}`;
-      if (this.n2yoCache.has(cacheKey)) {
-          const cached = this.n2yoCache.get(cacheKey);
-          if (Date.now() - cached.timestamp < 1000 * 60 * 60) { // 1 hour cache for passes
-              return cached.data;
-          }
+  async getTLE(satId) {
+      if (this.cache.satellites.length === 0) {
+          await this.getSatellites();
       }
+      const sat = this.cache.satellites.find(s => s.satelliteId === satId);
+      if (sat) {
+          return {
+              tle: { line1: sat.tleLine1, line2: sat.tleLine2 },
+              info: { satname: sat.name, satid: satId }
+          };
+      }
+      return null;
+  }
 
+  async getVisualPasses(satId, lat, lng, alt = 0, days = 10, minVis = 300) {
       try {
-          const url = `https://api.n2yo.com/rest/v1/satellite/visualpasses/${satId}/${lat}/${lng}/${alt}/${days}/${minVis}/&apiKey=${this.N2YO_API_KEY}`;
-          const response = await axios.get(url, { timeout: 8000 });
-          
-          if (response.data && response.data.passes) {
-              const result = {
-                  info: response.data.info,
-                  passes: response.data.passes
-              };
-              this.n2yoCache.set(cacheKey, { timestamp: Date.now(), data: result });
-              return result;
+          // 1. Get TLE Data (Local or API)
+          const tleData = await this.getTLE(satId);
+          if (!tleData || !tleData.tle) {
+               console.warn(`[getVisualPasses] TLE not found for ${satId}`);
+               return { passes: [] };
           }
-          return { info: response.data?.info, passes: [] };
+
+          // 2. Perform Local Propagation using satellite.js
+          const satRec = satellite.twoline2satrec(tleData.tle.line1, tleData.tle.line2);
+          const passes = [];
+          const now = new Date();
+          let currentPass = null;
+          
+          // Check next 24 hours (enough for ~15 orbits)
+          // Step size: 1 minute
+          for (let i = 0; i < 60 * 24; i++) {
+              const time = new Date(now.getTime() + i * 60000);
+              
+              // Propagate
+              const positionAndVelocity = satellite.propagate(satRec, time);
+              const positionEci = positionAndVelocity.position;
+              if (!positionEci) continue;
+
+              const gmst = satellite.gstime(time);
+              const positionEcf = satellite.eciToEcf(positionEci, gmst);
+              const lookAngles = satellite.ecfToLookAngles({
+                  latitude: parseFloat(lat) * Math.PI / 180,
+                  longitude: parseFloat(lng) * Math.PI / 180,
+                  height: parseFloat(alt) / 1000
+              }, positionEcf);
+
+              const az = lookAngles.azimuth * 180 / Math.PI;
+              const el = lookAngles.elevation * 180 / Math.PI;
+
+              if (el > 10) { // Visible > 10 degrees elevation
+                  if (!currentPass) {
+                      currentPass = {
+                          startUTC: Math.floor(time.getTime() / 1000),
+                          startAz: az,
+                          startAzCompass: this.degreesToCompass(az),
+                          maxEl: el,
+                          startTime: time
+                      };
+                  } else {
+                      if (el > currentPass.maxEl) currentPass.maxEl = el;
+                  }
+              } else {
+                  if (currentPass) {
+                      currentPass.endUTC = Math.floor(time.getTime() / 1000);
+                      currentPass.duration = currentPass.endUTC - currentPass.startUTC;
+                      currentPass.endAz = az;
+                      currentPass.endAzCompass = this.degreesToCompass(az);
+                      passes.push(currentPass);
+                      currentPass = null;
+                  }
+              }
+          }
+
+          if (passes.length > 0) {
+              return {
+                  info: { satname: tleData.info.satname, satid: satId, method: "LOCAL_CALCULATION" },
+                  passes: passes
+              };
+          }
+           
+          return { info: { satname: "Unknown", satid: satId }, passes: [] };
+
       } catch (err) {
-          console.error(`[OrbitalAtlas] Visual Pass fetch failed: ${err.message}`);
+          console.error(`[OrbitalAtlas] Local Pass Calc failed: ${err.message}`, err);
           return { passes: [] };
       }
+  }
+
+  degreesToCompass(degrees) {
+      const val = Math.floor((degrees / 22.5) + 0.5);
+      const arr = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+      return arr[(val % 16)];
   }
 
   // ... (existing parseTLEs code) ...

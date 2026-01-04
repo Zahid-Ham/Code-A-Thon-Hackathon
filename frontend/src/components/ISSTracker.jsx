@@ -56,7 +56,30 @@ const ISSTracker = ({ userLocation }) => {
         return () => clearInterval(interval);
     }, [nextPass]);
 
-    if (loading || !nextPass) return null;
+    if (loading) {
+        return (
+            <div className="mt-4 p-4 rounded-xl border border-cyan-500/30 bg-black/40 backdrop-blur-md">
+                <div className="flex items-center gap-2 text-cyan-400 animate-pulse">
+                    <Clock size={16} />
+                    <span className="text-xs font-mono tracking-widest">SCANNING SKIES...</span>
+                </div>
+            </div>
+        );
+    }
+
+    if (!nextPass) {
+         return (
+            <div className="mt-4 p-4 rounded-xl border border-white/10 bg-black/40 backdrop-blur-md">
+                <div className="flex items-center gap-2 text-white/50">
+                    <AlertCircle size={16} />
+                    <span className="text-xs font-mono tracking-widest">NO PASSES DETECTED</span>
+                </div>
+                <div className="text-[10px] text-white/30 run-in mt-1">
+                    No visual passes in next 10 days for your sector.
+                </div>
+            </div>
+        );
+    }
 
     return (
         <motion.div 
