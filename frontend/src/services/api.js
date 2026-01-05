@@ -4,6 +4,17 @@ import axios from 'axios';
 const LL2_BASE_URL = 'https://ll.thespacedevs.com/2.3.0';
 const NASA_BASE_URL = 'https://api.nasa.gov/planetary/apod';
 const NASA_API_KEY = 'DEMO_KEY'; // In production, use environment variable
+const LOCAL_API_URL = 'http://localhost:5000/api';
+
+export const fetchMissionsByYear = async (year) => {
+    try {
+        const response = await axios.get(`${LOCAL_API_URL}/missions?year=${year}`);
+        return response.data;
+    } catch (error) {
+        console.error("Failed to fetch missions by year:", error);
+        return [];
+    }
+};
 
 // Helper to extract image URL from LL2 v2.3.0 Image objects or strings
 const getImageUrl = (imgData) => {
@@ -58,18 +69,17 @@ const normalizeMission = (launch) => {
 export const fetchMissions = async () => {
     try {
         // 1. Fetch Upcoming Launches (Future & Current)
-        const upcomingResponse = await axios.get(`${LL2_BASE_URL}/launches/upcoming/?limit=25`, {
+        const upcomingResponse = await axios.get(`${LL2_BASE_URL}/launches/upcoming/?limit=50`, {
             headers: { 'User-Agent': 'SpaceScope-App/1.0' }
         });
 
         // 2. Fetch Previous Launches (Past)
-        const pastResponse = await axios.get(`${LL2_BASE_URL}/launches/previous/?limit=25`, {
+        const pastResponse = await axios.get(`${LL2_BASE_URL}/launches/previous/?limit=50`, {
             headers: { 'User-Agent': 'SpaceScope-App/1.0' }
         });
 
-        // Reference Date: Today is 2026-01-04
-        const todayStr = '2026-01-04';
-        const today = new Date(todayStr).getTime();
+        // Reference Date: Today is 2026-01-05 (User provided current time)
+        const today = new Date().getTime();
 
         const upcomingData = upcomingResponse.data.results || [];
         const pastData = pastResponse.data.results || [];
@@ -90,10 +100,6 @@ export const fetchMissions = async () => {
             'Active', 'In Orbit', 'Operational', 'Ongoing',
             'Extended Mission', 'Launch In Flight', 'En Route'
         ];
-        const upcomingStatusNames = [
-            'Upcoming', 'Planned', 'Scheduled', 'To Be Determined',
-            'Go for Launch', 'TBD', 'Pre-Launch'
-        ];
 
         const past = [];
         const present = [];
@@ -103,17 +109,15 @@ export const fetchMissions = async () => {
             const mDate = new Date(mission.date).getTime();
             const statusName = mission.status;
 
-            // Classification Logic strictly following user requirements
-
-            // 🔴 Past: Date before today OR Status is Success/Failure/etc
-            if (pastStatusNames.some(s => statusName.includes(s)) || mDate < today) {
-                past.push(mission);
-            }
-            // 🔵 Present: Launched AND Status is Active/Operational AND not yet Past
-            else if (presentStatusNames.some(s => statusName.includes(s))) {
+            // 🔵 Present: Status is Active/Operational/In Flight
+            if (presentStatusNames.some(s => statusName.includes(s))) {
                 present.push(mission);
             }
-            // 🟣 Upcoming: Date after today OR TBD OR Status is Upcoming/Planned
+            // 🔴 Past: Date strictly before today OR Status is Success/Failure/etc
+            else if (pastStatusNames.some(s => statusName.includes(s)) || mDate < today) {
+                past.push(mission);
+            }
+            // 🟣 Upcoming: Everything else (beyond today)
             else {
                 future.push(mission);
             }

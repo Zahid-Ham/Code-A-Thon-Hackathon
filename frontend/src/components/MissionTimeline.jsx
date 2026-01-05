@@ -33,11 +33,11 @@ const MissionTimeline = ({ pastMissions = [], presentMissions = [], futureMissio
         return (
             <div className="relative flex items-center w-full min-h-[160px] group">
                 {/* Central Spine Connection Point */}
-                <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 z-20">
+                <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 z-40">
                     <motion.div
                         initial={{ scale: 0 }}
                         whileInView={{ scale: 1 }}
-                        className={`w-4 h-4 rounded-full border-2 border-black ${isActive ? 'bg-[#00F0FF] shadow-[0_0_20px_#00F0FF]' : 'bg-white/20'} transition-all duration-300`}
+                        className={`w-4 h-4 rounded-full border-2 border-black ${isActive ? 'bg-[#2DD4BF] shadow-[0_0_20px_#2DD4BF]' : 'bg-[#2DD4BF]/40'} transition-all duration-300`}
                     />
                 </div>
 
@@ -54,15 +54,15 @@ const MissionTimeline = ({ pastMissions = [], presentMissions = [], futureMissio
                             onClick={() => onSelectEvent(evt)}
                             className={`
                                 relative w-full p-6 rounded-2xl cursor-pointer transition-all duration-500
-                                border backdrop-blur-3xl group/card
+                                border-2 backdrop-blur-3xl group/card
                                 ${isActive
-                                    ? 'bg-[#00F0FF]/10 border-[#00F0FF] shadow-[0_0_40px_rgba(0,240,255,0.15)]'
-                                    : 'bg-white/[0.03] border-white/10 hover:border-white/30 hover:bg-white/[0.05]'}
+                                    ? 'bg-[#2DD4BF]/10 border-[#2DD4BF] shadow-[0_0_50px_rgba(45,212,191,0.2)]'
+                                    : 'bg-white/[0.03] border-[#2DD4BF]/60 hover:border-[#2DD4BF]/90 hover:bg-white/[0.05]'}
                             `}
                         >
                             {/* Card Glow Background */}
                             <div className="absolute inset-0 rounded-2xl overflow-hidden opacity-0 group-hover/card:opacity-100 transition-opacity">
-                                <div className="absolute top-0 left-0 w-32 h-32 bg-[#00F0FF]/10 blur-3xl -translate-x-1/2 -translate-y-1/2" />
+                                <div className="absolute top-0 left-0 w-32 h-32 bg-[#2DD4BF]/10 blur-3xl -translate-x-1/2 -translate-y-1/2" />
                             </div>
 
                             <div className="relative z-10 flex gap-4 items-start">
@@ -79,12 +79,12 @@ const MissionTimeline = ({ pastMissions = [], presentMissions = [], futureMissio
                                 {/* Texts */}
                                 <div className="flex-1 min-w-0">
                                     <div className="flex justify-between items-start mb-2">
-                                        <div className="text-[10px] font-mono text-[#00F0FF] tracking-[0.2em] font-bold">
+                                        <div className="text-[10px] font-mono text-[#2DD4BF] tracking-[0.2em] font-bold">
                                             {new Date(evt.date).getFullYear()} • {new Date(evt.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                         </div>
                                     </div>
 
-                                    <h4 className="text-white font-header font-bold text-lg leading-tight mb-1 group-hover/card:text-[#00F0FF] transition-colors truncate">
+                                    <h4 className="text-white font-header font-bold text-lg leading-tight mb-1 group-hover/card:text-[#2DD4BF] transition-colors truncate">
                                         {evt.name}
                                     </h4>
 
@@ -97,7 +97,7 @@ const MissionTimeline = ({ pastMissions = [], presentMissions = [], futureMissio
                             </div>
 
                             {/* Pointer Arm to Center */}
-                            <div className={`absolute top-1/2 -translate-y-1/2 w-8 h-[1px] bg-gradient-to-r ${isLeft ? 'from-transparent to-[#00F0FF]/30 -right-8' : 'from-[#00F0FF]/30 to-transparent -left-8'}`} />
+                            <div className={`absolute top-1/2 -translate-y-1/2 w-8 h-[1px] bg-gradient-to-r ${isLeft ? 'from-transparent to-[#2DD4BF]/50 -right-8' : 'from-[#2DD4BF]/50 to-transparent -left-8'}`} />
                         </div>
                     </motion.div>
 
@@ -109,36 +109,16 @@ const MissionTimeline = ({ pastMissions = [], presentMissions = [], futureMissio
     };
 
     return (
-        <div className="w-full h-full flex flex-col pt-8">
-            {/* Legend / Status Overlay */}
-            <div className="px-12 mb-8 flex justify-between items-center bg-white/[0.01] py-4 border-y border-white/5 backdrop-blur-md">
-                <div className="flex flex-col">
-                    <span className="text-[#00F0FF]/60 font-mono text-[9px] tracking-[0.4em] uppercase mb-1">DATASTREAM</span>
-                    <h3 className="text-2xl font-header font-bold text-white tracking-widest uppercase">
-                        {activeCategory === 'PAST' && 'PAST ARCHIVES'}
-                        {activeCategory === 'PRESENT' && 'PRESENT (ONGOING)'}
-                        {activeCategory === 'FUTURE' && 'UPCOMING (FUTURE)'}
-                    </h3>
-                </div>
-                <div className="text-right">
-                    <div className="text-[10px] font-mono text-white/40 uppercase tracking-widest mb-1">SEQUENCES LOADED</div>
-                    <div className="text-xl font-mono text-[#00F0FF] tabular-nums font-bold">{displayMissions.length}</div>
-                </div>
-            </div>
+        <div className="w-full h-full flex flex-col">
 
             <div
                 ref={scrollRef}
                 className="flex-1 overflow-y-auto px-4 pb-48 no-scrollbar relative"
             >
-                {/* Vertical Central Line (The Spine) */}
-                <div className="absolute left-1/2 top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-white/10 via-white/10 to-transparent transform -translate-x-1/2 pointer-events-none">
-                    {/* Animated Pulse on Line */}
-                    <motion.div
-                        animate={{ top: ['0%', '100%'], opacity: [0, 1, 0] }}
-                        transition={{ repeat: Infinity, duration: 4, ease: "linear" }}
-                        className="absolute w-1 h-20 bg-gradient-to-b from-transparent via-[#00F0FF] to-transparent -left-[1.5px]"
-                    />
-                </div>
+                {/* Vertical Central Line (The Spine) - STRICTLY SOLID & UNIFIED */}
+                <div
+                    className="absolute left-1/2 top-0 bottom-0 w-[4px] bg-[#2DD4BF] transform -translate-x-1/2 pointer-events-none z-30 shadow-[0_0_15px_rgba(45,212,191,0.4)]"
+                />
 
                 {displayMissions.length > 0 ? (
                     <div className="relative space-y-4">
