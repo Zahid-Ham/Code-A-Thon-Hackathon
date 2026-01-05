@@ -21,7 +21,7 @@
   }
 }
 
-/* Custom Futurisitc Scrollbar */
+/* Custom Futuristic Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -41,7 +41,45 @@
   box-shadow: 0 0 10px #00F0FF;
 }
 
-/* Glassmorphism Utility */
-.glass-panel {
-  @apply bg-white/5 backdrop-blur-md border border-white/10;
+@layer utilities {
+
+  /* Cross-browser scrollbar hiding */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari, etc. */
+  }
+
+  /* Glassmorphism Utility */
+  .glass-panel {
+    @apply bg-white/5 backdrop-blur-md border border-white/10;
+  }
+
+  /* Additional Animation Utilities */
+  .animate-pulse-subtle {
+    animation: pulse-subtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse-subtle {
+
+    0%,
+    100% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: .7;
+    }
+  }
+
+  /* 3D Perspective Utilities */
+  .Perspective-1000 {
+    perspective: 1000px;
+  }
 }

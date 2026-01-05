@@ -12,6 +12,7 @@ import {
   AcademyPlaceholder,
   TerraVisionPlaceholder
 } from './components/PlaceholderPages';
+import MissionTimelineView from './views/MissionTimelineView';
 
 function App() {
   return (
@@ -19,15 +20,15 @@ function App() {
       <Router>
         <SoundProvider>
           <Routes>
-             <Route element={<TransitionLayout />}>
-                <Route path="/" element={<TheBridge />} />
-                <Route path="/events" element={<EventDashboard />} />
-                <Route path="/solar" element={<SolarOverwatch />} />
-                <Route path="/orbital" element={<OrbitalAtlasView />} />
-                <Route path="/timeline" element={<ChronoArchivePlaceholder />} />
-                <Route path="/academy" element={<AcademyPlaceholder />} />
-                <Route path="/terra" element={<TerraVisionPlaceholder />} />
-             </Route>
+            <Route element={<TransitionLayout />}>
+              <Route path="/" element={<TheBridge />} />
+              <Route path="/events" element={<EventDashboard />} />
+              <Route path="/solar" element={<SolarOverwatch />} />
+              <Route path="/orbital" element={<OrbitalAtlasView />} />
+              <Route path="/timeline" element={<MissionTimelineView />} />
+              <Route path="/academy" element={<AcademyPlaceholder />} />
+              <Route path="/terra" element={<TerraVisionPlaceholder />} />
+            </Route>
           </Routes>
         </SoundProvider>
       </Router>
