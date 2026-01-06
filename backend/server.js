@@ -3,6 +3,7 @@ const cors = require('cors');
 const axios = require('axios');
 const CosmicWeatherService = require('./services/CosmicWeatherService');
 const OrbitalAtlasService = require('./services/OrbitalAtlasService');
+const DataLabService = require('./services/DataLabService');
 require('dotenv').config(); // Load environment variables
 
 const app = express();
@@ -12,6 +13,7 @@ const NASA_API_KEY = process.env.NASA_API_KEY || 'DEMO_KEY';
 // Initialize Services
 const cosmicService = new CosmicWeatherService(NASA_API_KEY);
 const orbitalService = new OrbitalAtlasService();
+const dataLabService = new DataLabService();
 
 // Enable CORS for frontend communication
 app.use(cors());
@@ -64,6 +66,26 @@ app.get('/api/orbital-atlas/satellite/:id', async (req, res) => {
   } catch (error) {
     console.error(`[API] Failed to get details for ${req.params.id}:`, error.message);
     res.status(404).json({ error: 'Satellite details not found' });
+  }
+});
+
+// --- DATA LAB GROUND TRUTH API ---
+app.get('/api/data-lab/telemetry', async (req, res) => {
+  try {
+    const telemetry = await dataLabService.getLiveTelemetry();
+    res.json(telemetry);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch Data Lab telemetry' });
+  }
+});
+
+app.post('/api/data-lab/report', async (req, res) => {
+  try {
+    const { countryName, countryCode, layer, countryData } = req.body;
+    const report = await dataLabService.generateTechnicalReport(countryName, countryCode, layer, countryData);
+    res.json(report);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to generate technical report' });
   }
 });
 
@@ -127,7 +149,7 @@ app.get('/api/celestial-events', async (req, res) => {
         description: `Velocity: ${Math.round(issRes.data.velocity)} km/h. Altitude: ${Math.round(issRes.data.altitude)} km.`,
         visibility_score: 100
       };
-      
+
       issCache.data = issData;
       issCache.lastFetch = now;
       events.push(issData);
@@ -142,29 +164,29 @@ app.get('/api/celestial-events', async (req, res) => {
   try {
     // 24 hours = 86400000 ms
     if (eonetCache.data && (now - eonetCache.lastFetch < 86400000)) {
-       events = events.concat(eonetCache.data); // Use concat for arrays
+      events = events.concat(eonetCache.data); // Use concat for arrays
     } else {
-       // Limit to 30 open events for a richer globe
-       const eonetRes = await axios.get('https://eonet.gsfc.nasa.gov/api/v3/events?limit=30&status=open', { timeout: 15000 });
-       
-       const liveHazards = eonetRes.data.events.map(evt => {
-         // EONET geometries can be points or polygons. We take the first point.
-         const geom = evt.geometry[0];
-         return {
-           id: evt.id,
-           title: evt.title,
-           type: 'HAZARD', // Volcanoes, Wildfires, etc.
-           lat: geom.coordinates[1], // GeoJSON is [lng, lat]
-           lng: geom.coordinates[0],
-           date: 'LIVE ALERT',
-           description: `Active natural event detected by NASA Earth Observatory. Category: ${evt.categories[0].title}.`,
-           visibility_score: 40 // Hazards usually mean bad visibility (smoke/ash)
-         };
-       });
+      // Limit to 30 open events for a richer globe
+      const eonetRes = await axios.get('https://eonet.gsfc.nasa.gov/api/v3/events?limit=30&status=open', { timeout: 15000 });
 
-       eonetCache.data = liveHazards;
-       eonetCache.lastFetch = now;
-       events = events.concat(liveHazards);
+      const liveHazards = eonetRes.data.events.map(evt => {
+        // EONET geometries can be points or polygons. We take the first point.
+        const geom = evt.geometry[0];
+        return {
+          id: evt.id,
+          title: evt.title,
+          type: 'HAZARD', // Volcanoes, Wildfires, etc.
+          lat: geom.coordinates[1], // GeoJSON is [lng, lat]
+          lng: geom.coordinates[0],
+          date: 'LIVE ALERT',
+          description: `Active natural event detected by NASA Earth Observatory. Category: ${evt.categories[0].title}.`,
+          visibility_score: 40 // Hazards usually mean bad visibility (smoke/ash)
+        };
+      });
+
+      eonetCache.data = liveHazards;
+      eonetCache.lastFetch = now;
+      events = events.concat(liveHazards);
     }
   } catch (err) {
     console.error('EONET Fetch Error:', err.message);
@@ -175,7 +197,7 @@ app.get('/api/celestial-events', async (req, res) => {
       { id: 'sim_volcano_etna', title: '[SIMULATION] Mt. Etna Eruption', type: 'HAZARD', lat: 37.75, lng: 14.99, date: 'LIVE ALERT', description: 'Significant lava flow detected on SE crater.', visibility_score: 85 },
       { id: 'sim_volcano_kilauea', title: '[SIMULATION] Kilauea Activity', type: 'HAZARD', lat: 19.42, lng: -155.29, date: 'LIVE ALERT', description: 'Summit eruption active within Halemaʻumaʻu crater.', visibility_score: 80 },
       { id: 'sim_volcano_popocatenetl', title: '[SIMULATION] Popocatépetl Ash', type: 'HAZARD', lat: 19.02, lng: -98.62, date: 'LIVE ALERT', description: 'Exhalation of water vapor, gas, and light ash.', visibility_score: 75 },
-      
+
       // WILDFIRES
       { id: 'sim_fire_ca', title: '[SIMULATION] California Coastal Fire', type: 'HAZARD', lat: 34.05, lng: -118.24, date: 'LIVE ALERT', description: 'Rapidly spreading brush fire near Malibu canyon.', visibility_score: 90 },
       { id: 'sim_fire_aus', title: '[SIMULATION] Bushfire - NSW', type: 'HAZARD', lat: -33.86, lng: 151.20, date: 'LIVE ALERT', description: 'High temperature anomalies detected in Blue Mountains.', visibility_score: 70 },
@@ -197,7 +219,7 @@ app.get('/api/celestial-events', async (req, res) => {
 
 app.post('/api/star-chart', async (req, res) => {
   const { lat, lng, date, style } = req.body;
-  
+
   const appId = process.env.ASTRONOMY_APP_ID;
   const appSecret = process.env.ASTRONOMY_APP_SECRET;
 
@@ -207,7 +229,7 @@ app.post('/api/star-chart', async (req, res) => {
   }
 
   const authString = Buffer.from(`${appId}:${appSecret}`).toString('base64');
-  
+
   try {
     const response = await axios.post('https://api.astronomyapi.com/api/v2/studio/star-chart', {
       style: style || 'default', // 'default', 'inverted', 'navy', 'red'
@@ -233,7 +255,7 @@ app.post('/api/star-chart', async (req, res) => {
         'Authorization': `Basic ${authString}`
       }
     });
-    
+
     // Return the image URL provided by the API
     console.log('[StarChart] Success. URL:', response.data.data.imageUrl);
     res.json({ imageUrl: response.data.data.imageUrl });
@@ -245,17 +267,17 @@ app.post('/api/star-chart', async (req, res) => {
 
 // Visual Passes Endpoint
 app.get('/api/satellite/visual-passes/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { lat, lng, alt, days } = req.query;
-        
-        if (!lat || !lng) return res.status(400).json({ error: "Missing lat/lng" });
+  try {
+    const { id } = req.params;
+    const { lat, lng, alt, days } = req.query;
 
-        const passes = await atlasService.getVisualPasses(id, lat, lng, alt || 0, days || 10);
-        res.json(passes);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    if (!lat || !lng) return res.status(400).json({ error: "Missing lat/lng" });
+
+    const passes = await atlasService.getVisualPasses(id, lat, lng, alt || 0, days || 10);
+    res.json(passes);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.listen(PORT, () => {

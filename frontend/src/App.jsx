@@ -12,6 +12,7 @@ import {
   AcademyPlaceholder,
   TerraVisionPlaceholder
 } from './components/PlaceholderPages';
+import AcademyView from './views/AcademyView';
 import MissionTimelineView from './views/MissionTimelineView';
 
 function App() {
@@ -26,7 +27,7 @@ function App() {
               <Route path="/solar" element={<SolarOverwatch />} />
               <Route path="/orbital" element={<OrbitalAtlasView />} />
               <Route path="/timeline" element={<MissionTimelineView />} />
-              <Route path="/academy" element={<AcademyPlaceholder />} />
+              <Route path="/academy" element={<AcademyView />} />
               <Route path="/terra" element={<TerraVisionPlaceholder />} />
             </Route>
           </Routes>
