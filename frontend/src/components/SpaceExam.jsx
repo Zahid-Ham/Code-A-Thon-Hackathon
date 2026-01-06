@@ -10,12 +10,25 @@ const SpaceExam = () => {
     const [showResult, setShowResult] = useState(false);
     const [selectedOption, setSelectedOption] = useState(null);
     const [isAnswered, setIsAnswered] = useState(false);
+    const [randomizedQuestions, setRandomizedQuestions] = useState([]);
+    const [loadingQuiz, setLoadingQuiz] = useState(false);
 
-    // Randomize questions when a category is selected
-    const randomizedQuestions = useMemo(() => {
-        if (!selectedCategory) return [];
-        const pool = quizzes[selectedCategory] || [];
-        return [...pool].sort(() => Math.random() - 0.5).slice(0, 10); // Take top 10 random
+    // Fetch dynamic AI quizzes when a category is selected
+    useState(() => {
+        if (!selectedCategory) return;
+        const fetchQuiz = async () => {
+            setLoadingQuiz(true);
+            try {
+                const res = await fetch(`http://localhost:5000/api/academy/quizzes/${selectedCategory}`);
+                const data = await res.json();
+                setRandomizedQuestions(data);
+            } catch (err) {
+                console.error('Failed to sync intelligence pool');
+            } finally {
+                setLoadingQuiz(false);
+            }
+        };
+        fetchQuiz();
     }, [selectedCategory]);
 
     const questionData = randomizedQuestions[currentQuestionIdx];
@@ -101,7 +114,20 @@ const SpaceExam = () => {
                             ))}
                         </div>
                     </motion.div>
-                ) : !showResult ? (
+                ) : loadingQuiz ? (
+                    <motion.div
+                        key="quiz-loading"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="flex-1 flex flex-col items-center justify-center gap-6"
+                    >
+                        <RefreshCcw size={48} className="text-cyan-400 animate-spin" />
+                        <div className="text-center">
+                            <div className="text-xs font-mono text-cyan-400 animate-pulse tracking-[0.5em] uppercase mb-2">Syncing Intelligence Pool</div>
+                            <div className="text-[10px] text-white/30 uppercase font-mono">Verifying Technical Constants via Groq Engine...</div>
+                        </div>
+                    </motion.div>
+                ) : !showResult && randomizedQuestions.length > 0 ? (
                     <motion.div
                         key="question-view"
                         initial={{ x: 20, opacity: 0 }}

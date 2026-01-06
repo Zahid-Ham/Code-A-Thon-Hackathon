@@ -37,111 +37,59 @@ const InfographicCard = ({ title, icon: Icon, color, summary, details, delay, on
 
 const AcademyInfographics = () => {
     const [selectedDetail, setSelectedDetail] = useState(null);
+    const [infographics, setInfographics] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const infographics = [
-        {
-            title: "SAR Technology",
-            icon: Wifi,
-            color: "#00F0FF",
-            summary: "Synthetic Aperture Radar (SAR) is an active sensor that sends microwave pulses to Earth, seeing through clouds and darkness.",
-            details: {
-                logic: "Active Microwave pulses bounce off surfaces and return to the sensor. Phase differences create 3D terrain maps.",
-                specs: [
-                    { label: "FREQUENCY", value: "C-Band (5.4 GHz)" },
-                    { label: "RESOLUTION", value: "5m to 25m" },
-                    { label: "SWATH WIDTH", value: "250 km" }
-                ],
-                utility: "Ideal for flood monitoring, deforestation tracking, and ice-shelf movement where optical visibility is low."
+    useEffect(() => {
+        const fetchInfographics = async () => {
+            try {
+                const res = await fetch('http://localhost:5000/api/academy/infographics');
+                const data = await res.json();
+
+                // Add icons and colors back to the dynamic data
+                const enrichedData = data.map(item => {
+                    switch (item.id) {
+                        case 'sar': return { ...item, icon: Wifi, color: "#00F0FF" };
+                        case 'ndvi': return { ...item, icon: Sun, color: "#00FF99" };
+                        case 'orbital': return { ...item, icon: Layers, color: "#FFD700" };
+                        case 'hazards': return { ...item, icon: Zap, color: "#FF0055" };
+                        case 'lasers': return { ...item, icon: FastForward, color: "#AA00FF" };
+                        case 'ai': return { ...item, icon: Globe, color: "#FFFFFF" };
+                        default: return { ...item, icon: Info, color: "#00F0FF" };
+                    }
+                });
+                setInfographics(enrichedData);
+            } catch (err) {
+                console.error('Failed to hydrate infographics');
+            } finally {
+                setLoading(false);
             }
-        },
-        {
-            title: "NDVI Vegetation",
-            icon: Sun,
-            color: "#00FF99",
-            summary: "Measures plant health by comparing Red and Near-Infrared light reflectance. Essential for global food security.",
-            details: {
-                logic: "Chlorophyll reflects NIR but absorbs Red. Healthy plants show a high ratio between these two bands.",
-                specs: [
-                    { label: "ALGORITHM", value: "(NIR-RED)/(NIR+RED)" },
-                    { label: "DATA RANGE", value: "-1.0 to +1.0" },
-                    { label: "HEALTHY", value: "> 0.6" }
-                ],
-                utility: "Drought early warning, crop yield prediction, and precision agriculture."
-            }
-        },
-        {
-            title: "Orbital Tiers",
-            icon: Layers,
-            color: "#FFD700",
-            summary: "The different altitudes where satellites reside, from 160km to 35,786km, each serving specific purposes.",
-            details: {
-                logic: "Higher altitude means slower orbital velocity and wider field of view.",
-                specs: [
-                    { label: "LEO ALTITUDE", value: "160 - 2,000 km" },
-                    { label: "MEO ALTITUDE", value: "20,200 km" },
-                    { label: "GEO ALTITUDE", value: "35,786 km" }
-                ],
-                utility: "LEO: Earth Obs; MEO: GPS/Navigation; GEO: Comms/TV."
-            }
-        },
-        {
-            title: "Space Hazards",
-            icon: Zap,
-            color: "#FF0055",
-            summary: "Solar flares, CMEs, and cosmic radiation pose severe risks to satellite electronics and power systems.",
-            details: {
-                logic: "Solar particles can cause 'Single Event Upsets' (SEU) in microchips, leading to bit-flips or hardware death.",
-                specs: [
-                    { label: "FLARE SPEED", value: "Speed of Light" },
-                    { label: "CME SPEED", value: "500-2,000 km/s" },
-                    { label: "WARNING TIME", value: "8 min to 3 days" }
-                ],
-                utility: "Shielding, radiation-hardened electronics, and safe-mode protocols are critical during G5 storms."
-            }
-        },
-        {
-            title: "Laser Relays",
-            icon: FastForward,
-            color: "#AA00FF",
-            summary: "Optical Inter-Satellite Links (OISL) allow data transfer in a vacuum via lasers, reducing latency significantly.",
-            details: {
-                logic: "Lasers transmit more data than RF and travel faster in vacuum vs fiber optics.",
-                specs: [
-                    { label: "BANDWIDTH", value: "100 Gbps+" },
-                    { label: "RANGE", value: "5,000 km+" },
-                    { label: "POWER SAVING", value: "40% vs RF" }
-                ],
-                utility: "Mega-constellations (Starlink, Kuiper) use this to bypass ground stations for global low-latency internet."
-            }
-        },
-        {
-            title: "AI On-Edge",
-            icon: Globe,
-            color: "#FFFFFF",
-            summary: "Processing satellite data in orbit using machine learning to send only relevant alerts (e.g., wildfire detection).",
-            details: {
-                logic: "Reduces downlink bandwidth by filtering 90% of 'empty' images on the satellite itself.",
-                specs: [
-                    { label: "CHIP TYPE", value: "NPU / FPGA" },
-                    { label: "LATENCY REDUX", value: "95%" },
-                    { label: "DETECT TIME", value: "< 5 Sec" }
-                ],
-                utility: "Wildfire detection, illegal fishing tracking, and real-time disaster alerts."
-            }
-        }
-    ];
+        };
+
+        fetchInfographics();
+    }, []);
 
     return (
         <div className="h-full relative">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 h-full pb-20">
-                {infographics.map((info, i) => (
-                    <InfographicCard
-                        key={info.title}
-                        {...info}
-                        delay={0.1 * i}
-                        onClick={() => setSelectedDetail(info)}
-                    />
-                ))}
+                {loading ? (
+                    Array(6).fill(0).map((_, i) => (
+                        <div key={i} className="glass-panel p-6 border border-white/5 animate-pulse h-64 bg-white/[0.01]">
+                            <div className="w-16 h-16 rounded-2xl bg-white/5 mb-6" />
+                            <div className="w-2/3 h-6 bg-white/5 mb-4" />
+                            <div className="w-full h-12 bg-white/5" />
+                        </div>
+                    ))
+                ) : (
+                    infographics.map((info, i) => (
+                        <InfographicCard
+                            key={info.id || info.title}
+                            {...info}
+                            delay={0.1 * i}
+                            onClick={() => setSelectedDetail(info)}
+                        />
+                    ))
+                )}
             </div>
 
             <AnimatePresence shadow>
