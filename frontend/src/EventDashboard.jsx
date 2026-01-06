@@ -15,7 +15,7 @@ const EventDashboard = () => {
     const [celestialEvents, setCelestialEvents] = useState([]);
     const [userLocation, setUserLocation] = useState(null);
     const [isGlobeReady, setIsGlobeReady] = useState(false); // Loader State
-    
+
     const [weatherData, setWeatherData] = useState(null); // Weather State
     const [isFlying, setIsFlying] = useState(false);      // Warp Animation State
 
@@ -56,7 +56,7 @@ const EventDashboard = () => {
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
         oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); 
+        oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
         oscillator.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.1);
         gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
@@ -68,13 +68,16 @@ const EventDashboard = () => {
 
     // Text-to-Speech
     const speakEventDetails = (event) => {
+        if (!event) return; // Defensive guard
         if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel(); 
-            const utterance = new SpeechSynthesisUtterance(`Trajecting to ${event.title || event.label}. ${event.description}`);
+            window.speechSynthesis.cancel();
+            const title = event.title || event.label || 'Unknown Objective';
+            const desc = event.description || 'No further data available.';
+            const utterance = new SpeechSynthesisUtterance(`Trajecting to ${title}. ${desc}`);
             utterance.rate = 1.1;
             utterance.pitch = 0.9;
             const voices = window.speechSynthesis.getVoices();
-            const sciFiVoice = voices.find(v => v.name.includes('Google US English')) || voices[0];
+            const sciFiVoice = voices.find(v => v.name && v.name.includes('Google US English')) || voices[0];
             if (sciFiVoice) utterance.voice = sciFiVoice;
             window.speechSynthesis.speak(utterance);
         }
@@ -137,7 +140,7 @@ const EventDashboard = () => {
         const initDashboard = async () => {
             let uLat = 0, uLng = 0;
             try {
-                const pos = await new Promise((resolve, reject) => 
+                const pos = await new Promise((resolve, reject) =>
                     navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true })
                 );
                 uLat = pos.coords.latitude;
@@ -149,7 +152,7 @@ const EventDashboard = () => {
                     .then(r => r.json())
                     .then(data => {
                         if (data.city || data.locality) {
-                             setUserLocation(prev => ({ ...prev, city: data.city || data.locality }));
+                            setUserLocation(prev => ({ ...prev, city: data.city || data.locality }));
                         }
                     });
             } catch (e) {
@@ -159,41 +162,41 @@ const EventDashboard = () => {
             try {
                 const res = await fetch('http://localhost:5000/api/celestial-events');
                 const data = await res.json();
-                
+
                 const processedEvents = data.map(evt => ({
                     ...evt,
-                    color: evt.type === 'ECLIPSE' ? '#FFD700' : 
-                           evt.type === 'METEOR' ? '#00F0FF' : 
-                           evt.type === 'SATELLITE' ? '#FF0055' : 
-                           evt.type === 'HAZARD' ? '#FF4500' : '#FFFFFF',
+                    color: evt.type === 'ECLIPSE' ? '#FFD700' :
+                        evt.type === 'METEOR' ? '#00F0FF' :
+                            evt.type === 'SATELLITE' ? '#FF0055' :
+                                evt.type === 'HAZARD' ? '#FF4500' : '#FFFFFF',
                     label: evt.title
                 }));
                 setCelestialEvents(processedEvents);
-                
+
                 // Only auto-start nearest if NOT already touring and just loaded
                 if (!localStorage.getItem('spaceScope_tourIndex') && (uLat !== 0 || uLng !== 0)) {
-                     const sortedByDist = [...processedEvents].sort((a, b) => {
-                         const distA = Math.hypot(a.lat - uLat, a.lng - uLng);
-                         const distB = Math.hypot(b.lat - uLat, b.lng - uLng);
-                         return distA - distB;
-                     });
+                    const sortedByDist = [...processedEvents].sort((a, b) => {
+                        const distA = Math.hypot(a.lat - uLat, a.lng - uLng);
+                        const distB = Math.hypot(b.lat - uLat, b.lng - uLng);
+                        return distA - distB;
+                    });
 
-                     if (sortedByDist.length > 0) {
-                         const nearest = sortedByDist[0];
-                         setTimeout(() => {
-                             if(globeEl.current) {
-                                 globeEl.current.pointOfView({ lat: uLat, lng: uLng, altitude: 2.5 }, 1000);
-                                 if ('speechSynthesis' in window) {
-                                     const announce = new SpeechSynthesisUtterance(`Welcome, Commander. Nearest trajectory calculated: ${nearest.title}.`);
-                                     announce.rate = 1.1;
-                                     window.speechSynthesis.speak(announce);
-                                     handleEventClick(nearest);
-                                 } else {
-                                     handleEventClick(nearest);
-                                 }
-                             }
-                         }, 1500);
-                     }
+                    if (sortedByDist.length > 0) {
+                        const nearest = sortedByDist[0];
+                        setTimeout(() => {
+                            if (globeEl.current) {
+                                globeEl.current.pointOfView({ lat: uLat, lng: uLng, altitude: 2.5 }, 1000);
+                                if ('speechSynthesis' in window) {
+                                    const announce = new SpeechSynthesisUtterance(`Welcome, Commander. Nearest trajectory calculated: ${nearest.title}.`);
+                                    announce.rate = 1.1;
+                                    window.speechSynthesis.speak(announce);
+                                    handleEventClick(nearest);
+                                } else {
+                                    handleEventClick(nearest);
+                                }
+                            }
+                        }, 1500);
+                    }
                 }
             } catch (err) {
                 console.error('Data Init Failed:', err);
@@ -219,20 +222,25 @@ const EventDashboard = () => {
     }, [isGlobeReady]);
 
     const handleEventClick = (event) => {
+        if (!event) return; // Defensive guard
         playClickSound();
         speakEventDetails(event);
-        
+
         setSelectedEvent(event);
-        fetchWeather(event.lat, event.lng);
+        if (typeof event.lat === 'number' && typeof event.lng === 'number') {
+            fetchWeather(event.lat, event.lng);
+        }
 
         if (globeEl.current) {
             globeEl.current.controls().autoRotate = false;
-            
+
             // Warp Speed ON
             setIsFlying(true);
             setTimeout(() => setIsFlying(false), 1500); // Stop after 1.5s flight
 
-            globeEl.current.pointOfView({ lat: event.lat, lng: event.lng, altitude: 1.5 }, 1500);
+            if (typeof event.lat === 'number' && typeof event.lng === 'number') {
+                globeEl.current.pointOfView({ lat: event.lat, lng: event.lng, altitude: 1.5 }, 1500);
+            }
         }
     };
 
@@ -246,7 +254,7 @@ const EventDashboard = () => {
     // Auto-Fetch Local Weather when User Location is found
     useEffect(() => {
         if (userLocation) {
-             fetchWeather(userLocation.lat, userLocation.lng);
+            fetchWeather(userLocation.lat, userLocation.lng);
         }
     }, [userLocation]);
 
@@ -255,92 +263,97 @@ const EventDashboard = () => {
             <Starfield />
             <RocketOverlay isFlying={isFlying} />
 
-            {/* Header */}
-            <header className="absolute top-0 left-0 w-full p-6 flex justify-between items-center z-50 pointer-events-none">
+            {/* Header / Top Navigation */}
+            <header className="absolute top-0 left-0 w-full p-8 flex justify-between items-start z-50 pointer-events-none">
                 <div className="flex items-center gap-6">
-                    <button 
-                        onClick={() => window.location.href = '/'} // Simple navigation for now
-                        className="pointer-events-auto p-2 rounded-full border border-white/20 hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                    <button
+                        onClick={() => window.location.href = '/dashboard'}
+                        className="pointer-events-auto p-3 rounded-xl border border-white/10 bg-black/40 backdrop-blur-md hover:bg-[#00F0FF]/10 text-white/60 hover:text-[#00F0FF] transition-all hover:scale-110 shadow-lg"
                     >
-                         <ArrowRight className="rotate-180" size={24} />
+                        <ArrowRight className="rotate-180" size={24} />
                     </button>
                     <div className="flex flex-col">
-                        <h1 className="text-3xl font-header font-bold tracking-widest text-[#00F0FF] drop-shadow-[0_0_10px_rgba(0,240,255,0.5)]">
-                            CELESTIAL COMMAND
+                        <h1 className="text-4xl font-header font-bold tracking-[0.2em] text-[#00F0FF] drop-shadow-[0_0_15px_rgba(0,240,255,0.4)] uppercase">
+                            Celestial Command
                         </h1>
-                        <span className="text-xs font-mono text-white/50 tracking-[0.3em]">SYSTEM OVERWATCH // V.2.0</span>
+                        <div className="flex items-center gap-3 mt-1">
+                            <span className="h-[1px] w-8 bg-[#00F0FF]/40" />
+                            <span className="text-[10px] font-mono text-white/40 tracking-[0.4em] uppercase">Global Overwatch Paradigm // 04</span>
+                        </div>
                     </div>
                 </div>
                 {userLocation && (
                     <div className="glass-panel px-4 py-2 rounded-full flex items-center gap-2 pointer-events-auto">
                         <Crosshair size={16} className="text-green-400 animate-pulse" />
                         <span className="text-xs font-mono text-green-400">
-                             LOC: {userLocation.city ? userLocation.city.toUpperCase() : 'DETECTING...'} // {userLocation.lat.toFixed(2)}, {userLocation.lng.toFixed(2)}
+                            LOC: {userLocation.city ? userLocation.city.toString().toUpperCase() : 'DETECTING...'} // {typeof userLocation.lat === 'number' ? userLocation.lat.toFixed(2) : '0.00'}, {typeof userLocation.lng === 'number' ? userLocation.lng.toFixed(2) : '0.00'}
                         </span>
                     </div>
                 )}
             </header>
 
-            {/* Local Command Center - Always Visible Left Panel */}
-            <div className="absolute top-32 left-8 z-40 w-80 pointer-events-auto">
-                 {/* 1. Local Weather / Conditions */}
-                 {userLocation && weatherData && !selectedEvent && (
-                    <motion.div 
+            {/* Local Command Center - Left Panel */}
+            <div className="absolute top-32 left-8 z-40 w-80 pointer-events-auto space-y-4">
+                {/* 1. Local Weather / Conditions */}
+                {userLocation && weatherData && !selectedEvent && (
+                    <motion.div
                         initial={{ x: -100, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
-                        className="glass-panel p-6 rounded-xl border-l-[3px] border-[#00F0FF] backdrop-blur-md bg-black/40 mb-4"
+                        className="glass-panel p-6 rounded-xl border-l-[3px] border-[#00F0FF] backdrop-blur-md bg-black/40"
                     >
-                        <h3 className="text-[#00F0FF] font-mono text-xs tracking-widest mb-4 flex items-center gap-2">
-                            <MapPin size={14} /> LOCAL SECTOR ANALYSIS
+                        <h3 className="text-[#00F0FF] font-mono text-[10px] tracking-widest mb-4 flex items-center gap-2">
+                            <MapPin size={12} /> LOCAL SECTOR ANALYSIS
                         </h3>
-                        
+
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex flex-col">
-                                <span className="text-5xl font-bold text-white tracking-tighter">{weatherData.temperature}°</span>
-                                <span className="text-xs text-white/40 font-mono mt-1">AMBIENT TEMP</span>
+                                <span className="text-4xl font-bold text-white tracking-tighter">{weatherData.temperature}°</span>
+                                <span className="text-[10px] text-white/40 font-mono">AMBIENT TEMP</span>
                             </div>
-                            <div className="flex flex-col items-end">
+                            <div className="flex items-center gap-3">
                                 {getWeatherInfo(weatherData.weathercode).icon}
-                                <span className="text-sm font-bold text-[#00F0FF] mt-1 text-right">{getWeatherInfo(weatherData.weathercode).label}</span>
-                                <span className="text-[10px] text-white/40 uppercase tracking-widest">Sky Cond</span>
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-[#00F0FF] leading-none">{getWeatherInfo(weatherData.weathercode).label.toUpperCase()}</span>
+                                    <span className="text-[8px] text-white/40 uppercase tracking-widest mt-1">Sky Conditions</span>
+                                </div>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 border-t border-white/10 pt-4">
-                             <div>
-                                 <div className="flex items-center gap-2 text-white/80">
-                                     <Wind size={14} />
-                                     <span className="font-bold">{weatherData.windspeed} <span className="text-[10px]">km/h</span></span>
-                                 </div>
-                                 <div className="text-[9px] text-white/30 uppercase mt-1">Wind Velocity</div>
-                             </div>
-                             <div>
-                                 <div className="flex items-center gap-2 text-white/80">
-                                     <Eye size={14} />
-                                     <span className="font-bold">{(100 - (weatherData.weathercode > 3 ? 60 : 10))}%</span>
-                                 </div>
-                                 <div className="text-[9px] text-white/30 uppercase mt-1">Visibility Est.</div>
-                             </div>
+                            <div>
+                                <div className="flex items-center gap-2 text-white/80">
+                                    <Wind size={12} />
+                                    <span className="text-xs font-bold">{weatherData.windspeed} <span className="text-[8px]">km/h</span></span>
+                                </div>
+                                <div className="text-[8px] text-white/30 uppercase mt-1">Wind Velocity</div>
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2 text-white/80">
+                                    <Eye size={12} />
+                                    <span className="text-xs font-bold">{(100 - (weatherData.weathercode > 3 ? 60 : 10))}%</span>
+                                </div>
+                                <div className="text-[8px] text-white/30 uppercase mt-1">Visibility Est.</div>
+                            </div>
                         </div>
                     </motion.div>
-                 )}
+                )}
 
-                 {/* 2. ISS Tracker */}
-                 {userLocation && (
-                     <ISSTracker userLocation={userLocation} />
-                 )}
+                {/* 2. ISS Tracker */}
+                {userLocation && (
+                    <ISSTracker userLocation={userLocation} />
+                )}
             </div>
 
             {/* Main Globe with Visual Loader */}
             <div className="absolute inset-0 z-0 flex items-center justify-center">
                 {!isGlobeReady && (
-                   <div className="absolute inset-0 z-50 bg-black flex flex-col items-center justify-center text-[#00F0FF]">
-                       <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#00F0FF]"></div>
-                       <span className="mt-4 font-mono tracking-widest">INITIALIZING ORBITAL SYSTEMS...</span>
-                   </div>
+                    <div className="absolute inset-0 z-50 bg-black flex flex-col items-center justify-center text-[#00F0FF]">
+                        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#00F0FF]"></div>
+                        <span className="mt-4 font-mono tracking-widest">INITIALIZING ORBITAL SYSTEMS...</span>
+                    </div>
                 )}
-                
-                <MemoizedGlobe 
+
+                <MemoizedGlobe
                     globeRef={globeEl}
                     polygons={polygons}
                     majorEvents={majorEvents}
@@ -361,7 +374,7 @@ const EventDashboard = () => {
                         transition={{ type: "spring", stiffness: 100, damping: 20 }}
                         className="fixed right-0 top-0 h-full w-96 glass-panel border-l border-white/10 z-50 p-8 flex flex-col pt-24 backdrop-blur-xl bg-black/40 overflow-y-auto"
                     >
-                        <button 
+                        <button
                             onClick={closePanel}
                             className="absolute top-8 right-8 text-white/50 hover:text-white transition-colors"
                         >
@@ -369,11 +382,11 @@ const EventDashboard = () => {
                         </button>
 
                         <div className="mb-2 flex items-center gap-3">
-                             {selectedEvent.type === 'ECLIPSE' && <div className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_10px_gold]" />}
-                             {selectedEvent.type === 'METEOR' && <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_10px_cyan]" />}
-                             {selectedEvent.type === 'SATELLITE' && <div className="w-2 h-2 rounded-full bg-pink-500 shadow-[0_0_10px_magenta]" />}
-                             {selectedEvent.type === 'HAZARD' && <div className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_10px_orange]" />}
-                             <span className="font-mono text-xs tracking-widest text-white/60">{selectedEvent.type} EVENT</span>
+                            {selectedEvent.type === 'ECLIPSE' && <div className="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_10px_gold]" />}
+                            {selectedEvent.type === 'METEOR' && <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_10px_cyan]" />}
+                            {selectedEvent.type === 'SATELLITE' && <div className="w-2 h-2 rounded-full bg-pink-500 shadow-[0_0_10px_magenta]" />}
+                            {selectedEvent.type === 'HAZARD' && <div className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_10px_orange]" />}
+                            <span className="font-mono text-xs tracking-widest text-white/60">{selectedEvent.type} EVENT</span>
                         </div>
 
                         <h2 className="text-4xl font-header font-bold text-white mb-6 drop-shadow-md leading-tight">
@@ -421,13 +434,25 @@ const EventDashboard = () => {
                             {selectedEvent.description}
                         </p>
 
-                        <div className="mt-8 p-4 rounded-lg bg-white/5 border border-white/10">
-                            <div className="flex justify-between items-center mb-2">
-                                <span className="text-xs font-mono text-white/40">COORDINATES</span>
-                                <Satellite size={16} className="text-white/40" />
+                        <div className="mt-8 p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+                            <div className="flex justify-between items-center mb-4">
+                                <span className="text-[10px] font-mono text-white/30 tracking-widest uppercase">Target_Coordinates</span>
+                                <Satellite size={16} className="text-[#00F0FF] animate-pulse" />
                             </div>
-                            <div className="font-mono text-xl text-white">
-                                {selectedEvent.lat.toFixed(2)}° N / {selectedEvent.lng.toFixed(2)}° E
+                            <div className="font-mono text-2xl text-white tracking-tighter flex items-baseline gap-2">
+                                {typeof selectedEvent.lat === 'number' ? selectedEvent.lat.toFixed(4) : '0.0000'}°<span className="text-xs text-white/40">N</span>
+                                <span className="text-white/20">/</span>
+                                {typeof selectedEvent.lng === 'number' ? selectedEvent.lng.toFixed(4) : '0.0000'}°<span className="text-xs text-white/40">E</span>
+                            </div>
+                            <div className="mt-4 pt-4 border-t border-white/5 flex gap-4">
+                                <div className="flex flex-col">
+                                    <span className="text-[8px] text-white/30 uppercase font-mono">Precision</span>
+                                    <span className="text-[10px] text-green-400 font-mono">HIGH_SYNC</span>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-[8px] text-white/30 uppercase font-mono">Data_Source</span>
+                                    <span className="text-[10px] text-[#00F0FF] font-mono uppercase">{selectedEvent.type}</span>
+                                </div>
                             </div>
                         </div>
 
@@ -435,13 +460,13 @@ const EventDashboard = () => {
                         <SkyVisibilitySlider eventData={selectedEvent} />
 
                         <div className="flex gap-2 mt-6">
-                             <button className="flex-1 py-4 bg-[#00F0FF]/10 border border-[#00F0FF]/30 text-[#00F0FF] font-bold tracking-widest hover:bg-[#00F0FF]/20 transition-all flex justify-center items-center gap-2 group">
+                            <button className="flex-1 py-4 bg-[#00F0FF]/10 border border-[#00F0FF]/30 text-[#00F0FF] font-bold tracking-widest hover:bg-[#00F0FF]/20 transition-all flex justify-center items-center gap-2 group">
                                 TRACK
                                 <Crosshair size={16} />
                             </button>
-                            <a 
-                                href={`https://www.google.com/search?q=${encodeURIComponent(selectedEvent.title + ' space event details')}`} 
-                                target="_blank" 
+                            <a
+                                href={`https://www.google.com/search?q=${encodeURIComponent(selectedEvent.title + ' space event details')}`}
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex-1 py-4 bg-white/5 border border-white/10 text-white/70 font-bold tracking-widest hover:bg-white/10 hover:text-white transition-all flex justify-center items-center gap-2"
                             >
@@ -453,32 +478,61 @@ const EventDashboard = () => {
                 )}
             </AnimatePresence>
 
-            {/* Tour Control Panel (Floating above Timeline) */}
-            <div className={`absolute bottom-64 left-1/2 transform -translate-x-1/2 flex items-center gap-4 p-4 rounded-full backdrop-blur-xl bg-black/60 border border-[#00F0FF]/30 z-40 transition-all duration-500 ${isTourActive ? 'shadow-[0_0_30px_rgba(0,240,255,0.3)]' : 'opacity-80 hover:opacity-100'}`}>
-                <button onClick={prevTourStep} className="text-white hover:text-[#00F0FF] transition-colors"><SkipBack size={20}/></button>
-                
-                <button 
-                    onClick={toggleTour} 
-                    className={`w-12 h-12 flex items-center justify-center rounded-full border border-[#00F0FF] transition-all ${isTourActive ? 'bg-[#00F0FF] text-black shadow-[0_0_20px_#00F0FF]' : 'text-[#00F0FF] hover:bg-[#00F0FF]/20'}`}
-                >
-                    {isTourActive ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-1" />}
-                </button>
-                
-                <button onClick={nextTourStep} className="text-white hover:text-[#00F0FF] transition-colors"><SkipForward size={20}/></button>
+            {/* Console Interface Tier - Bottom Horizontal Layer */}
+            <div className="absolute bottom-0 left-0 w-full z-40 bg-gradient-to-t from-[#050B14] via-[#050B14]/90 to-transparent pt-32 pointer-events-none">
+                {/* Tour Control Console - Floating Distinct Feature */}
+                <div className={`mx-auto mb-10 w-fit flex items-center gap-6 p-4 rounded-2xl backdrop-blur-3xl bg-black/80 border border-white/10 transition-all duration-700 pointer-events-auto ${isTourActive ? 'shadow-[0_0_50px_rgba(0,240,255,0.2)] border-[#00F0FF]/40' : 'hover:border-white/20'}`}>
+                    <div className="flex items-center gap-2 border-r border-white/10 pr-4">
+                        <Play size={14} className={isTourActive ? 'text-[#00F0FF] animate-pulse' : 'text-white/20'} />
+                        <span className="text-[9px] font-mono text-white/40 tracking-widest">AUTO_NAV</span>
+                    </div>
 
-                <div className="w-32 h-1 bg-white/20 rounded-full overflow-hidden ml-2">
-                    <div 
-                        className="h-full bg-[#00F0FF] transition-all duration-300 ease-linear"
-                        style={{ width: `${((tourIndex % Math.max(1, allDisplayEvents.length)) / Math.max(1, allDisplayEvents.length)) * 100}%` }}
+                    <div className="flex items-center gap-4">
+                        <button onClick={prevTourStep} className="text-white/50 hover:text-[#00F0FF] transition-all hover:scale-120"><SkipBack size={20} /></button>
+
+                        <button
+                            onClick={toggleTour}
+                            className={`w-12 h-12 flex items-center justify-center rounded-xl border transition-all ${isTourActive ? 'bg-[#00F0FF] text-black border-[#00F0FF] shadow-[0_0_30px_#00F0FF]' : 'border-white/20 text-white hover:border-[#00F0FF] hover:text-[#00F0FF]'}`}
+                        >
+                            {isTourActive ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" className="ml-1" />}
+                        </button>
+
+                        <button onClick={nextTourStep} className="text-white/50 hover:text-[#00F0FF] transition-all hover:scale-120"><SkipForward size={20} /></button>
+                    </div>
+
+                    <div className="flex flex-col gap-2 pl-4 border-l border-white/10">
+                        <div className="flex justify-between items-center w-40">
+                            <span className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">Mission Sweep</span>
+                            <span className="text-[10px] font-mono text-[#00F0FF] font-bold">
+                                {tourIndex % Math.max(1, allDisplayEvents.length) + 1} / {allDisplayEvents.length}
+                            </span>
+                        </div>
+                        <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-[#00F0FF] transition-all duration-500 ease-out shadow-[0_0_10px_#00F0FF]"
+                                style={{ width: `${((tourIndex % Math.max(1, allDisplayEvents.length) + 1) / Math.max(1, allDisplayEvents.length)) * 100}%` }}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Horizontal Chrono-Strip */}
+                <div className="pointer-events-auto border-t border-white/5 bg-black/40 backdrop-blur-md pt-2">
+                    <div className="flex items-center px-10 pt-2 mb-[-10px] justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-2 h-2 rounded-full bg-[#00F0FF] animate-pulse" />
+                            <span className="text-[10px] font-mono text-white/60 tracking-[0.3em] uppercase">Active_Events_Buffer</span>
+                        </div>
+                        <div className="text-[9px] font-mono text-white/30 uppercase">Scroll to Explore Sector</div>
+                    </div>
+                    <MissionTimeline
+                        events={celestialEvents}
+                        onSelectEvent={handleEventClick}
+                        selectedEventId={selectedEvent?.id}
+                        horizontal={true}
                     />
                 </div>
-                <span className="text-[10px] font-mono text-[#00F0FF]">
-                    TOUR: {tourIndex % Math.max(1, allDisplayEvents.length) + 1}/{allDisplayEvents.length}
-                </span>
             </div>
-
-            {/* Mission Timeline - Bottom Overlay */}
-            <MissionTimeline events={celestialEvents} onSelectEvent={handleEventClick} selectedEventId={selectedEvent?.id} />
         </div>
     );
 };

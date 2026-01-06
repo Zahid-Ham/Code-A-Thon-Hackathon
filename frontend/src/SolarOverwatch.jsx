@@ -36,7 +36,7 @@ const SolarOverwatch = () => {
          {/* Left Header & Context Panel */}
          <div className="pointer-events-auto flex flex-col gap-6 max-w-md">
             <div>
-                <Link to="/" className="flex items-center gap-2 text-white/50 hover:text-white transition-colors mb-4">
+                <Link to="/dashboard" className="flex items-center gap-2 text-white/50 hover:text-white transition-colors mb-4">
                     <ArrowLeft size={20} />
                     <span>Return to Bridge</span>
                 </Link>

@@ -16,6 +16,21 @@ export const fetchMissionsByYear = async (year) => {
     }
 };
 
+export const fetchMissionIntel = async (mission) => {
+    try {
+        const response = await axios.post(`${LOCAL_API_URL}/mission-intel`, {
+            name: mission.name,
+            description: mission.description,
+            date: mission.date,
+            agency: mission.agency
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Failed to fetch mission intelligence:", error);
+        return null;
+    }
+};
+
 // Helper to extract image URL from LL2 v2.3.0 Image objects or strings
 const getImageUrl = (imgData) => {
     if (!imgData) return null;
@@ -109,15 +124,15 @@ export const fetchMissions = async () => {
             const mDate = new Date(mission.date).getTime();
             const statusName = mission.status;
 
-            // 🔵 Present: Status is Active/Operational/In Flight
-            if (presentStatusNames.some(s => statusName.includes(s))) {
-                present.push(mission);
-            }
-            // 🔴 Past: Date strictly before today OR Status is Success/Failure/etc
-            else if (pastStatusNames.some(s => statusName.includes(s)) || mDate < today) {
+            // 🔴 Past: Date is strictly before today
+            if (mDate < today) {
                 past.push(mission);
             }
-            // 🟣 Upcoming: Everything else (beyond today)
+            // 🔵 Present: Status is Active/Operational/In Flight
+            else if (presentStatusNames.some(s => statusName.includes(s))) {
+                present.push(mission);
+            }
+            // 🟣 Upcoming: Everything else (beyond today and not active)
             else {
                 future.push(mission);
             }

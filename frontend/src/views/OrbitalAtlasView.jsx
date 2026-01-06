@@ -241,7 +241,7 @@ const OrbitalAtlasView = () => {
             <div className="relative w-full h-screen bg-black overflow-hidden font-sans">
                 {/* Back Button */}
                  <button 
-                    onClick={() => navigate('/')}
+                    onClick={() => navigate('/dashboard')}
                     className="absolute top-6 left-6 z-50 flex items-center gap-2 px-4 py-2 bg-black/50 backdrop-blur-md border border-white/10 rounded-full text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500 hover:text-cyan-300 transition-all group"
                  >
                     <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />

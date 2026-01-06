@@ -112,7 +112,7 @@ const MemoizedGlobe = ({
         <Globe
             ref={globeRef}
             backgroundColor="rgba(0,0,0,0)"
-            globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
+            globeImageUrl="https://unpkg.com/three-globe/example/img/earth-night.jpg"
             
             // Dynamic Atmosphere
             atmosphereAltitude={config.atmosphereAltitude}
