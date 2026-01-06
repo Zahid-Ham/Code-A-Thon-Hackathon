@@ -14,14 +14,19 @@ import {
 } from './components/PlaceholderPages';
 import MissionTimelineView from './views/MissionTimelineView';
 
+import CosmicLanding from './components/CosmicLanding';
+
 function App() {
   return (
     <CosmicWeatherProvider>
       <Router>
         <SoundProvider>
           <Routes>
+             {/* Landing Page (No Layout/Transition initially, or separate) */}
+             <Route path="/" element={<CosmicLanding />} />
+
             <Route element={<TransitionLayout />}>
-              <Route path="/" element={<TheBridge />} />
+              <Route path="/dashboard" element={<TheBridge />} />
               <Route path="/events" element={<EventDashboard />} />
               <Route path="/solar" element={<SolarOverwatch />} />
               <Route path="/orbital" element={<OrbitalAtlasView />} />

@@ -11,22 +11,22 @@ export const SoundProvider = ({ children }) => {
   // Refs for audio elements to avoid re-creation
   const hoverAudio = useRef(new Audio('/sounds/hover.mp3'));
   const warpAudio = useRef(new Audio('/sounds/warp.mp3'));
+  // Placeholder for mechanical hum - user needs to provide 'hum.mp3'
+  // Using a map to manage multiple stems
+  const stemsRef = useRef({});
 
   useEffect(() => {
     // Preload audio
     hoverAudio.current.load();
     warpAudio.current.load();
-    
-    // Set volumes
-    hoverAudio.current.volume = 0.2; // Subtle hover
-    warpAudio.current.volume = 0.5; // Louder warp
+    hoverAudio.current.volume = 0.2; 
+    warpAudio.current.volume = 0.5;
   }, []);
 
   const playHover = () => {
     if (isMuted) return;
-    // Clone node to allow rapid re-triggering if needed, or just reset time
     if (hoverAudio.current.paused) {
-        hoverAudio.current.play().catch(e => console.log("Audio play failed (interaction needed first)", e));
+        hoverAudio.current.play().catch(e => {});
     } else {
         hoverAudio.current.currentTime = 0;
     }
@@ -35,13 +35,46 @@ export const SoundProvider = ({ children }) => {
   const playWarp = () => {
     if (isMuted) return;
     warpAudio.current.currentTime = 0;
-    warpAudio.current.play().catch(e => console.log("Audio play failed", e));
+    warpAudio.current.play().catch(e => {});
+  };
+  
+  // Adaptive Audio Mixer
+  // volumeMap: { 'space': 0.5, 'cockpit': 0.2, 'reflection': 0.0 }
+  const updateMix = (volumeMap) => {
+      if (isMuted) {
+          Object.values(stemsRef.current).forEach(audio => audio.pause());
+          return;
+      }
+
+      Object.entries(volumeMap).forEach(([track, vol]) => {
+          if (!stemsRef.current[track]) {
+              // Lazy load stems
+              // Map generic track names to files (This could be config driven too)
+              const fileMap = {
+                  'space': '/sounds/space_ambience.mp3',
+                  'cockpit': '/sounds/cockpit_hum.mp3',
+                  'reflection': '/sounds/ethereal_pad.mp3'
+              };
+              const audio = new Audio(fileMap[track] || '/sounds/hum.mp3'); // Fallback
+              audio.loop = true;
+              stemsRef.current[track] = audio;
+          }
+
+          const audio = stemsRef.current[track];
+          if (vol > 0.01) {
+              if (audio.paused) audio.play().catch(() => {});
+              // Smooth volume transition could be added here, but direct setting is fine for scroll-driven
+              audio.volume = Math.min(Math.max(vol, 0), 1);
+          } else {
+              if (!audio.paused) audio.pause();
+          }
+      });
   };
 
   const toggleMute = () => setIsMuted(!isMuted);
 
   return (
-    <SoundContext.Provider value={{ isMuted, playHover, playWarp, toggleMute }}>
+    <SoundContext.Provider value={{ isMuted, playHover, playWarp, updateMix, toggleMute }}>
       {children}
       {/* Sound Toggle UI Button - Fixed Absolute Position */}
       <div 
