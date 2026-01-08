@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, ArrowRight, RefreshCcw, CheckCircle2, XCircle, Award, Layers, Globe, Zap, Rocket, ChevronLeft } from 'lucide-react';
 import { quizzes, quizCategories } from '../data/learningData';
@@ -14,7 +14,7 @@ const SpaceExam = () => {
     const [loadingQuiz, setLoadingQuiz] = useState(false);
 
     // Fetch dynamic AI quizzes when a category is selected
-    useState(() => {
+    useEffect(() => {
         if (!selectedCategory) return;
         const fetchQuiz = async () => {
             setLoadingQuiz(true);

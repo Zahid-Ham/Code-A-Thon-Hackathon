@@ -165,58 +165,130 @@ const AcademyView = () => {
                                     </div>
                                 </motion.div>
 
-                                {/* Feature Cards */}
+                                {/* Feature Cards - Abstract Pattern Design */}
                                 <motion.div
                                     variants={itemVariants}
                                     onClick={() => setActiveTab('INFOGRAPHICS')}
-                                    className="glass-panel group relative overflow-hidden h-72 cursor-pointer border border-white/10 hover:border-green-500/50 transition-all"
+                                    className="glass-panel group relative overflow-hidden h-64 cursor-pointer border border-white/10 hover:border-white/30 transition-all duration-300"
                                 >
-                                    <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1541447271487-09612b3f49f7?q=80&w=2070&auto=format&fit=crop')] bg-cover opacity-20 filter grayscale-50 group-hover:scale-110 transition-transform duration-700" />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-[#020408] to-transparent" />
-                                    <div className="absolute bottom-6 left-6 pr-6">
-                                        <h3 className="text-2xl font-bold mb-2 tracking-tight uppercase">Technical Infographics</h3>
-                                        <p className="text-xs text-white/50 leading-relaxed">Visual breakdowns of satellite sensors, orbital tiers, and critical space hazards.</p>
+                                    {/* Grid pattern background - MORE VISIBLE */}
+                                    <div className="absolute inset-0 opacity-100"
+                                        style={{
+                                            backgroundImage: 'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)',
+                                            backgroundSize: '24px 24px'
+                                        }}
+                                    />
+                                    {/* Large floating orb */}
+                                    <div className="absolute -top-20 -right-20 w-56 h-56 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-500/5 blur-3xl group-hover:scale-110 transition-transform duration-700" />
+                                    {/* Bottom gradient */}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-[#020408] via-transparent to-transparent" />
+
+                                    <div className="absolute inset-0 p-6 flex flex-col justify-between relative z-10">
+                                        <div className="flex justify-between items-start">
+                                            <Binary size={20} className="text-white/40 group-hover:text-white/70 transition-colors" />
+                                            <span className="text-[9px] font-mono text-white/30 uppercase tracking-widest">12 Assets</span>
+                                        </div>
+
+                                        <div>
+                                            <h3 className="text-xl font-bold mb-2 tracking-tight text-white/90 group-hover:text-white transition-colors">Technical Infographics</h3>
+                                            <p className="text-xs text-white/40 leading-relaxed group-hover:text-white/60 transition-colors">Visual breakdowns of satellite sensors, orbital tiers, and critical space hazards.</p>
+                                        </div>
                                     </div>
+
+                                    <div className="absolute bottom-0 left-0 w-0 h-[2px] bg-cyan-500/50 group-hover:w-full transition-all duration-500" />
                                 </motion.div>
 
                                 <motion.div
                                     variants={itemVariants}
                                     onClick={() => setActiveTab('SIMULATOR')}
-                                    className="glass-panel group relative overflow-hidden h-72 cursor-pointer border border-white/10 hover:border-cyan-500/50 transition-all"
+                                    className="glass-panel group relative overflow-hidden h-64 cursor-pointer border border-white/10 hover:border-white/30 transition-all duration-300"
                                 >
-                                    <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop')] bg-cover opacity-20 filter grayscale-50 group-hover:scale-110 transition-transform duration-700" />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-[#020408] to-transparent" />
-                                    <div className="absolute bottom-6 left-6 pr-6">
-                                        <div className="text-cyan-400 bg-cyan-400/10 px-2 py-1 rounded text-[9px] font-mono inline-block mb-3">NEW MODULE</div>
-                                        <h3 className="text-2xl font-bold mb-2 tracking-tight">Earth Impact Sim</h3>
-                                        <p className="text-xs text-white/50 leading-relaxed">Visualize real-world problem solving through satellite data layers. Agriculture, Climate, and Disaster response.</p>
+                                    {/* Orbital rings pattern - MORE VISIBLE */}
+                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rounded-full border border-white/10 group-hover:scale-110 transition-transform duration-700" />
+                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-52 h-52 rounded-full border border-cyan-500/10 group-hover:border-cyan-500/20 transition-all duration-500" />
+                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full border border-white/5" />
+                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-cyan-500/30 group-hover:bg-cyan-500/50 transition-colors" />
+                                    {/* Bottom gradient */}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-[#020408] via-transparent to-transparent" />
+
+                                    <div className="absolute inset-0 p-6 flex flex-col justify-between relative z-10">
+                                        <div className="flex justify-between items-start">
+                                            <Globe size={20} className="text-white/40 group-hover:text-white/70 transition-colors" />
+                                            <span className="text-[9px] font-mono text-cyan-400/70 uppercase tracking-widest border border-cyan-500/30 px-2 py-0.5 rounded">New</span>
+                                        </div>
+
+                                        <div>
+                                            <h3 className="text-xl font-bold mb-2 tracking-tight text-white/90 group-hover:text-white transition-colors">Earth Impact Sim</h3>
+                                            <p className="text-xs text-white/40 leading-relaxed group-hover:text-white/60 transition-colors">Visualize real-world problem solving through satellite data layers.</p>
+                                        </div>
                                     </div>
+
+                                    <div className="absolute bottom-0 left-0 w-0 h-[2px] bg-cyan-500/50 group-hover:w-full transition-all duration-500" />
                                 </motion.div>
 
                                 <motion.div
                                     variants={itemVariants}
                                     onClick={() => setActiveTab('BRIEFING')}
-                                    className="glass-panel group relative overflow-hidden h-72 cursor-pointer border border-white/10 hover:border-blue-500/50 transition-all"
+                                    className="glass-panel group relative overflow-hidden h-64 cursor-pointer border border-white/10 hover:border-white/30 transition-all duration-300"
                                 >
-                                    <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?q=80&w=2072&auto=format&fit=crop')] bg-cover opacity-20 group-hover:scale-110 transition-transform duration-700" />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-[#020408] to-transparent" />
-                                    <div className="absolute bottom-6 left-6 pr-6">
-                                        <h3 className="text-2xl font-bold mb-2 tracking-tight">Mission Briefings</h3>
-                                        <p className="text-xs text-white/50 leading-relaxed">Deep dive into orbital mechanics and remote sensing telemetry with technical breakdowns.</p>
+                                    {/* Diagonal lines pattern - MORE VISIBLE */}
+                                    <div className="absolute inset-0"
+                                        style={{
+                                            backgroundImage: 'repeating-linear-gradient(135deg, transparent, transparent 30px, rgba(255,255,255,0.03) 30px, rgba(255,255,255,0.03) 31px)'
+                                        }}
+                                    />
+                                    {/* Multiple floating elements */}
+                                    <div className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full bg-gradient-to-tr from-blue-500/15 to-transparent blur-2xl" />
+                                    <div className="absolute top-8 right-8 w-24 h-24 rounded-full bg-gradient-to-bl from-white/5 to-transparent" />
+                                    {/* Bottom gradient */}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-[#020408] via-transparent to-transparent" />
+
+                                    <div className="absolute inset-0 p-6 flex flex-col justify-between relative z-10">
+                                        <div className="flex justify-between items-start">
+                                            <BookOpen size={20} className="text-white/40 group-hover:text-white/70 transition-colors" />
+                                            <span className="text-[9px] font-mono text-white/30 uppercase tracking-widest">2 Themes</span>
+                                        </div>
+
+                                        <div>
+                                            <h3 className="text-xl font-bold mb-2 tracking-tight text-white/90 group-hover:text-white transition-colors">Mission Briefings</h3>
+                                            <p className="text-xs text-white/40 leading-relaxed group-hover:text-white/60 transition-colors">Deep dive into orbital mechanics and remote sensing telemetry.</p>
+                                        </div>
                                     </div>
+
+                                    <div className="absolute bottom-0 left-0 w-0 h-[2px] bg-cyan-500/50 group-hover:w-full transition-all duration-500" />
                                 </motion.div>
 
                                 <motion.div
                                     variants={itemVariants}
                                     onClick={() => setActiveTab('EXAM')}
-                                    className="glass-panel group relative overflow-hidden h-72 cursor-pointer border border-white/10 hover:border-purple-500/50 transition-all"
+                                    className="glass-panel group relative overflow-hidden h-64 cursor-pointer border border-white/10 hover:border-white/30 transition-all duration-300"
                                 >
-                                    <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1517976487492-5750f3195933?q=80&w=2070&auto=format&fit=crop')] bg-cover opacity-20 group-hover:scale-110 transition-transform duration-700" />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-[#020408] to-transparent" />
-                                    <div className="absolute bottom-6 left-6 pr-6">
-                                        <h3 className="text-2xl font-bold mb-2 tracking-tight">Advanced Exam</h3>
-                                        <p className="text-xs text-white/50 leading-relaxed">Validate your expertise and earn your rank. Serious-level assessments for future mission specialists.</p>
+                                    {/* Dot pattern - MORE VISIBLE */}
+                                    <div className="absolute inset-0"
+                                        style={{
+                                            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px)',
+                                            backgroundSize: '20px 20px'
+                                        }}
+                                    />
+                                    {/* Achievement glow - larger */}
+                                    <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-gradient-to-bl from-purple-500/15 to-transparent blur-2xl" />
+                                    <div className="absolute bottom-12 left-12 w-32 h-32 rounded-full bg-gradient-to-tr from-cyan-500/10 to-transparent blur-xl" />
+                                    {/* Bottom gradient */}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-[#020408] via-transparent to-transparent" />
+
+                                    <div className="absolute inset-0 p-6 flex flex-col justify-between relative z-10">
+                                        <div className="flex justify-between items-start">
+                                            <GraduationCap size={20} className="text-white/40 group-hover:text-white/70 transition-colors" />
+                                            <span className="text-[9px] font-mono text-white/30 uppercase tracking-widest">Certification</span>
+                                        </div>
+
+                                        <div>
+                                            <h3 className="text-xl font-bold mb-2 tracking-tight text-white/90 group-hover:text-white transition-colors">Advanced Exam</h3>
+                                            <p className="text-xs text-white/40 leading-relaxed group-hover:text-white/60 transition-colors">Validate your expertise and earn your rank as a mission specialist.</p>
+                                        </div>
                                     </div>
+
+                                    <div className="absolute bottom-0 left-0 w-0 h-[2px] bg-cyan-500/50 group-hover:w-full transition-all duration-500" />
                                 </motion.div>
                             </motion.div>
                         )}
