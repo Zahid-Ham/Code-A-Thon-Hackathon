@@ -8,8 +8,6 @@ import TransitionLayout from './components/TransitionLayout';
 import { SoundProvider } from './contexts/SoundContext';
 import { CosmicWeatherProvider } from './contexts/CosmicWeatherContext';
 import {
-  ChronoArchivePlaceholder,
-  AcademyPlaceholder,
   TerraVisionPlaceholder
 } from './components/PlaceholderPages';
 import AcademyView from './views/AcademyView';

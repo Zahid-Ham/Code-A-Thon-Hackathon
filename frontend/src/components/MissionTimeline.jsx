@@ -1,12 +1,23 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronRight, ChevronLeft, Rocket, History, Calendar } from 'lucide-react';
 
-const MissionTimeline = ({ pastMissions = [], presentMissions = [], futureMissions = [], onSelectEvent, selectedEventId, activeCategory = 'PRESENT' }) => {
+const MissionTimeline = ({
+    pastMissions = [],
+    presentMissions = [],
+    futureMissions = [],
+    events = [], // For compatibility with EventDashboard
+    onSelectEvent,
+    selectedEventId,
+    activeCategory = 'PRESENT'
+}) => {
     const scrollRef = useRef(null);
 
-    // Dynamic Filtering Logic with Strict Rules
-    const getFilteredMissions = () => {
+    // Performance: Memoize filtering logic
+    const displayMissions = useMemo(() => {
+        // If single events list is provided, use it
+        if (events.length > 0) return events;
+
         switch (activeCategory) {
             case 'PAST':
                 return [...pastMissions];
@@ -16,9 +27,7 @@ const MissionTimeline = ({ pastMissions = [], presentMissions = [], futureMissio
             default:
                 return [...presentMissions];
         }
-    };
-
-    const displayMissions = getFilteredMissions();
+    }, [activeCategory, pastMissions, presentMissions, futureMissions, events]);
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -47,7 +56,8 @@ const MissionTimeline = ({ pastMissions = [], presentMissions = [], futureMissio
                     <motion.div
                         initial={{ opacity: 0, x: isLeft ? -40 : 40 }}
                         whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true, margin: "-50px" }}
+                        viewport={{ once: true, margin: "-20px" }}
+                        transition={{ duration: 0.5 }}
                         className="w-1/2 flex items-center px-12"
                     >
                         <div
@@ -71,6 +81,7 @@ const MissionTimeline = ({ pastMissions = [], presentMissions = [], futureMissio
                                     <img
                                         src={evt.image || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=200'}
                                         alt=""
+                                        loading="lazy"
                                         className="w-full h-full object-cover grayscale group-hover/card:grayscale-0 transition-all duration-500"
                                         onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=200'; }}
                                     />
