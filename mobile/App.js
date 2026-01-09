@@ -9,15 +9,27 @@ import * as THREE from 'three';
 import { Asset } from 'expo-asset';
 
 // --- AR Launcher ---
-const launchNativeAR = () => {
-    // Duck is safe, but let's try to use a more "Space" generic one if possible, or just the Duck for the "True AR" demo.
-    // Ideally we would host the Earth GLB.
+const launchNativeAR = async () => {
+    // We use the HTTPS Deep Link which is more robust than raw Intent schemes.
+    // Android System intercepts "arvr.google.com" and hands it to the Google App (Scene Viewer).
+    // If that fails, it opens in Chrome, which also supports Scene Viewer.
+    // This avoids the "Activity not found" crashes.
     const modelUrl = 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb'; 
-    const scheme = Platform.select({
-        android: `intent://arvr.google.com/scene-viewer/1.0?file=${modelUrl}&mode=ar_prefer#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=https://developers.google.com/ar;end;`,
-        ios: 'https://developer.apple.com/augmented-reality/quick-look/'
-    });
-    Linking.openURL(scheme).catch(() => alert("Google AR not installed."));
+    const sceneViewerUrl = `https://arvr.google.com/scene-viewer/1.0?file=${modelUrl}&mode=ar_prefer`;
+    
+    // iOS Quick Look
+    if (Platform.OS === 'ios') {
+        Linking.openURL('https://developer.apple.com/augmented-reality/quick-look/');
+        return;
+    }
+
+    // Android
+    try {
+        await Linking.openURL(sceneViewerUrl);
+    } catch (e) {
+        // Fallback: If even the HTTPS link fails (rare), show alert
+        alert("Could not launch AR Viewer. Please ensure Google Chrome is installed.");
+    }
 };
 
 // --- Compass Camera (Spherical Orbit) ---
