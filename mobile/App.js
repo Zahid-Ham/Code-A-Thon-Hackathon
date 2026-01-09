@@ -1,134 +1,166 @@
 import React, { useState, useEffect, Suspense, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Linking, Platform, Image } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Linking, Platform, SafeAreaView, Dimensions } from 'react-native';
 import { Canvas, useFrame, useThree } from '@react-three/fiber/native';
 import { useGLTF } from '@react-three/drei/native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { DeviceMotion } from 'expo-sensors';
 import { AR_MODELS } from './src/data/models';
 import * as THREE from 'three';
+import { Asset } from 'expo-asset';
 
-// --- Native AR Launcher (The "Iron Man" Feature) ---
-const launchNativeAR = (modelId) => {
-    // URL for Google Scene Viewer (Android)
-    // This allows True SLAM (Surface detection, scaling, walking around)
-    // We use a public URL for the model because Intent requires a hosted link usually, 
-    // BUT we can try local content or use the official NASA/Google assets for this demo if local fails.
-    // For this hackathon, we will use known working public GLBs for the "True AR" demo 
-    // to guarantee the "Iron Man" experience works immediately.
-    
-    // Mapping ID to public reliable ARCore-ready models
-    const MODEL_URLS = {
-        'earth': 'https://raw.githubusercontent.com/google/model-viewer/master/packages/shared-assets/models/Astronaut.glb', // Placeholder for stable test
-        // Ideally: 'https://solarsystem.nasa.gov/gltf/Earth.glb' but we need reliable CORS
-        // Let's use the user's perception that "It works".
-        // Using "Astronaut" as a stable test, user can see it works perfectly.
-    };
-    
-    // Construct Search Intent (Works on almost all Androids)
-    // "intent://arvr.google.com/scene-viewer/1.0?file=..."
-    // Simpler: Just search query for 3D animals technique
-    // Best: Scene Viewer Intent
-    
+// --- AR Launcher ---
+const launchNativeAR = () => {
+    // Duck is safe, but let's try to use a more "Space" generic one if possible, or just the Duck for the "True AR" demo.
+    // Ideally we would host the Earth GLB.
+    const modelUrl = 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb'; 
     const scheme = Platform.select({
-        android: `intent://arvr.google.com/scene-viewer/1.0?file=https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb&mode=ar_only#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=https://developers.google.com/ar;end;`,
-        ios: 'https://developer.apple.com/augmented-reality/quick-look/' // USDZ fallback
+        android: `intent://arvr.google.com/scene-viewer/1.0?file=${modelUrl}&mode=ar_prefer#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=https://developers.google.com/ar;end;`,
+        ios: 'https://developer.apple.com/augmented-reality/quick-look/'
     });
-
-    // We will try to open a generic reliable URL first to prove the tech
-    // Then we can swap specifically for Earth if we host it.
-    // For now, let's use the standard "Google Scene Intent" for a generic object to prove capability.
-    
-    Linking.openURL(scheme).catch(err => {
-        alert("Native AR not supported on this device. Using Sensor Mode.");
-    });
+    Linking.openURL(scheme).catch(() => alert("Google AR not installed."));
 };
 
-// --- Sensor Camera (Fallback) ---
-const SensorCamera = ({ isLocked }) => {
+// --- Compass Camera (Spherical Orbit) ---
+const CompassCamera = ({ isLocked, setDebugHint, distance }) => {
   const { camera } = useThree();
-  const initialRef = useRef({ alpha: 0, beta: 0, gamma: 0 });
-  
+  const anchorRef = useRef({ alpha: 0, beta: 0 }); 
+
   useEffect(() => {
     DeviceMotion.setUpdateInterval(16);
     const sub = DeviceMotion.addListener((data) => {
-      const { rotation } = data;
-      if (rotation) {
-         const { alpha, beta, gamma } = rotation;
-         
-         if (!isLocked) {
-             // Preview Mode: Camera is Static (0,0,0)
-             camera.rotation.set(0,0,0);
-         } else {
-             // Locked: Camera rotates RELATIVE to lock point
-             // This mimics simple 3DoF
-             camera.rotation.x = beta;
-             camera.rotation.y = -gamma;
-         }
-      }
+        const rotation = data.rotation;
+        if (!rotation) return;
+        
+        const alpha = rotation.alpha || 0; 
+        const beta = rotation.beta || 0;   
+        
+        if (!isLocked) {
+             // Preview: Camera static at 0,0, distance
+             camera.position.set(0, 0, distance);
+             camera.rotation.set(0, 0, 0);
+             camera.lookAt(0,0,0);
+             anchorRef.current = { alpha, beta }; 
+             return;
+        }
+        
+        let deltaAlpha = alpha - anchorRef.current.alpha;
+        if (deltaAlpha > Math.PI) deltaAlpha -= 2 * Math.PI;
+        if (deltaAlpha < -Math.PI) deltaAlpha += 2 * Math.PI;
+
+        let deltaBeta = beta - anchorRef.current.beta;
+        
+        // Spherical Orbit
+        const radius = distance; 
+        const theta = deltaAlpha; 
+        const phi = deltaBeta * 2.0; // Sensitivity
+
+        // Convert to Cartesian
+        // We want to orbit around (0,0,0)
+        camera.position.x = radius * Math.sin(theta) * Math.cos(phi);
+        camera.position.y = radius * Math.sin(phi);
+        camera.position.z = radius * Math.cos(theta) * Math.cos(phi);
+        
+        camera.lookAt(0, 0, 0);
+
+        if (Math.abs(deltaAlpha) > 0.8) setDebugHint(deltaAlpha > 0 ? "Turn Left ⬅️" : "Turn Right ➡️");
+        else setDebugHint("");
     });
     return () => sub.remove();
-  }, [isLocked]);
+  }, [isLocked, distance]);
   return null;
 };
 
-// --- Model ---
-const PreviewModel = ({ asset, scale }) => {
+// --- Shadow ---
+const GroundShadow = () => (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.5, 0]}>
+        <ringGeometry args={[0.1, 1.5, 32]} />
+        <meshBasicMaterial color="black" transparent opacity={0.4} />
+    </mesh>
+);
+
+const VariableModel = ({ asset, scale }) => {
     const { scene } = useGLTF(asset);
-    return <primitive object={scene} position={[0, -1, -3]} scale={[scale, scale, scale]} />;
+    return (
+        <group>
+            <primitive object={scene} position={[0, 0, 0]} scale={[scale, scale, scale]} />
+            <GroundShadow />
+        </group>
+    );
 };
 
 export default function App() {
   const [permission, requestPermission] = useCameraPermissions();
   const [activeModel, setActiveModel] = useState(AR_MODELS.Planets[0]); 
+  
   const [isLocked, setIsLocked] = useState(false);
+  const [hint, setHint] = useState("");
+  const [userScale, setUserScale] = useState(1.0); // Size
+  const [distance, setDistance] = useState(4.0);   // Camera Distance
 
   if (!permission?.granted) {
-      return (
-        <View style={styles.center}><TouchableOpacity onPress={requestPermission} style={styles.btn}><Text>Enable Camera</Text></TouchableOpacity></View>
-      );
+      return (<View style={styles.center}><TouchableOpacity onPress={requestPermission} style={styles.btn}><Text>Enable Camera</Text></TouchableOpacity></View>);
   }
 
   return (
     <View style={styles.container}>
       <CameraView style={StyleSheet.absoluteFill} facing="back" />
       
-      {/* Studio / Preview Mode (R3F) */}
+      {/* 3D Scene */}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
           <Canvas>
               <ambientLight intensity={1.5} />
-              <directionalLight position={[0,5,5]} />
-              <SensorCamera isLocked={isLocked} />
+              <directionalLight position={[0,10,5]} />
+              <CompassCamera isLocked={isLocked} setDebugHint={setHint} distance={distance} />
               <Suspense fallback={null}>
-                  <PreviewModel asset={activeModel.asset} scale={activeModel.scale * 3} />
+                  <VariableModel 
+                      asset={activeModel.asset} 
+                      scale={activeModel.scale * 1.5 * userScale} // Reduced Base Scale
+                  />
               </Suspense>
           </Canvas>
       </View>
 
-      {/* UI Overlay */}
-      <View style={styles.ui}>
-          <Text style={styles.title}>AR SPACE LAB</Text>
+      {/* Radar Hint */}
+      {hint !== "" && <View style={styles.radar}><Text style={styles.radarText}>{hint}</Text></View>}
+
+      {/* --- TOP UI (SafeArea) --- */}
+      <SafeAreaView style={styles.topContainer}>
+          <View style={styles.topRow}>
+              {/* Size Controls */}
+              {!isLocked ? (
+                <View style={styles.controlGroup}>
+                    <Text style={styles.label}>SIZE</Text>
+                    <View style={styles.pill}>
+                        <TouchableOpacity onPress={() => setUserScale(s => Math.max(0.5, s - 0.2))} style={styles.circleBtn}><Text style={styles.btnIcon}>-</Text></TouchableOpacity>
+                        <Text style={styles.valueStr}>{userScale.toFixed(1)}x</Text>
+                        <TouchableOpacity onPress={() => setUserScale(s => Math.min(3, s + 0.2))} style={styles.circleBtn}><Text style={styles.btnIcon}>+</Text></TouchableOpacity>
+                    </View>
+                </View>
+              ) : (
+                <View style={styles.lockedBadge}>
+                    <Text style={styles.lockedText}>LOCKED 🔒</Text>
+                </View>
+              )}
+
+              {/* Native AR Button */}
+              <TouchableOpacity onPress={launchNativeAR} style={styles.arButton}>
+                  <Text style={styles.arText}>GOOGLE AR 🚀</Text>
+              </TouchableOpacity>
+          </View>
+      </SafeAreaView>
+
+      {/* --- BOTTOM UI --- */}
+      <View style={styles.bottomContainer}>
+          
           <Text style={styles.modelName}>{activeModel.name}</Text>
 
-          {/* TWO MODES */}
-          <View style={styles.actions}>
-             {/* 1. Preview Lock (Sensor) */}
-             <TouchableOpacity 
-                onPress={() => setIsLocked(!isLocked)} 
-                style={[styles.btn, styles.btnSecondary]}
-             >
-                <Text style={styles.btnText}>{isLocked ? "UNLOCK PREVIEW" : "LOCK SENSORS"}</Text>
-             </TouchableOpacity>
+          <TouchableOpacity 
+             onPress={() => setIsLocked(!isLocked)} 
+             style={[styles.bigBtn, isLocked ? styles.lockedBtn : styles.unlockedBtn]}
+          >
+             <Text style={styles.bigBtnText}>{isLocked ? "🔓 UNLOCK" : "📍 LOCK HERE"}</Text>
+          </TouchableOpacity>
 
-             {/* 2. TRUE AR (Iron Man Mode) */}
-             <TouchableOpacity 
-                onPress={() => launchNativeAR(activeModel.id)} 
-                style={[styles.btn, styles.btnPrimary]}
-             >
-                <Text style={styles.btnText}>LAUNCH TRUE AR 🚀</Text>
-                <Text style={styles.subText}>Surface Tracking • Walkable</Text>
-             </TouchableOpacity>
-          </View>
-          
           <View style={styles.selector}>
              {AR_MODELS.Planets.map(m => (
                  <TouchableOpacity key={m.id} onPress={() => setActiveModel(m)} style={[styles.tab, activeModel.id === m.id && styles.activeTab]}>
@@ -144,17 +176,36 @@ export default function App() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'black' },
   center: { flex:1, justifyContent:'center', alignItems:'center' },
-  ui: { position: 'absolute', bottom: 40, width: '100%', alignItems: 'center' },
-  title: { color: 'rgba(255,255,255,0.5)', fontSize: 12, letterSpacing: 2, marginBottom: 5 },
+  
+  // Top UI
+  topContainer: { position: 'absolute', top: 0, width: '100%', paddingTop: Platform.OS === 'android' ? 40 : 0 },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20 },
+  
+  controlGroup: { alignItems: 'flex-start' },
+  label: { color: 'cyan', fontSize: 10, fontWeight: 'bold', marginBottom: 5 },
+  pill: { flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 30, padding: 5, alignItems: 'center' },
+  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
+  btnIcon: { color: 'white', fontSize: 24, fontWeight: 'bold' },
+  valueStr: { color: 'white', fontWeight: 'bold', marginHorizontal: 10, minWidth: 40, textAlign: 'center' },
+
+  lockedBadge: { backgroundColor:'red', paddingVertical:5, paddingHorizontal:15, borderRadius:20 },
+  lockedText: { color:'white', fontWeight:'bold' },
+
+  arButton: { backgroundColor: 'white', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 25 },
+  arText: { color: 'black', fontWeight: 'bold', fontSize: 14 },
+
+  // Bottom UI
+  bottomContainer: { position: 'absolute', bottom: 40, width: '100%', alignItems: 'center' },
   modelName: { color: 'white', fontSize: 42, fontWeight: 'bold', marginBottom: 20 },
   
-  actions: { flexDirection: 'column', gap: 10, marginBottom: 30, width: '80%' },
-  btn: { paddingVertical: 15, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  btnPrimary: { backgroundColor: '#00ffff', height: 70 },
-  btnSecondary: { backgroundColor: 'rgba(255,255,255,0.2)', height: 50 },
-  btnText: { fontWeight: 'bold', fontSize: 16 },
-  subText: { fontSize: 10, color: '#005555', marginTop: 2 },
+  bigBtn: { paddingVertical: 20, paddingHorizontal: 60, borderRadius: 40, marginBottom: 25 },
+  unlockedBtn: { backgroundColor: '#00ffff' },
+  lockedBtn: { backgroundColor: '#ff0055' },
+  bigBtnText: { fontWeight: '900', fontSize: 18, color: 'black' },
   
+  radar: { position:'absolute', top:'45%', alignSelf:'center', padding:20, backgroundColor:'rgba(0,0,0,0.7)', borderRadius:20 },
+  radarText: { color:'yellow', fontSize: 24, fontWeight:'bold' },
+
   selector: { flexDirection: 'row', gap: 10 },
   tab: { padding: 8, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.2)' },
   activeTab: { backgroundColor: 'cyan' },
