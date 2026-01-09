@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import TheBridge from './components/TheBridge';
+import CosmicLanding from './components/CosmicLanding';
 import EventDashboard from './EventDashboard';
 import SolarOverwatch from './SolarOverwatch';
 import OrbitalAtlasView from './views/OrbitalAtlasView';
@@ -13,6 +14,7 @@ import {
 import AcademyView from './views/AcademyView';
 import MissionTimelineView from './views/MissionTimelineView';
 
+
 function App() {
   return (
     <CosmicWeatherProvider>
@@ -20,7 +22,8 @@ function App() {
         <SoundProvider>
           <Routes>
             <Route element={<TransitionLayout />}>
-              <Route path="/" element={<TheBridge />} />
+              <Route path="/" element={<CosmicLanding />} />
+              <Route path="/dashboard" element={<TheBridge />} />
               <Route path="/events" element={<EventDashboard />} />
               <Route path="/solar" element={<SolarOverwatch />} />
               <Route path="/orbital" element={<OrbitalAtlasView />} />

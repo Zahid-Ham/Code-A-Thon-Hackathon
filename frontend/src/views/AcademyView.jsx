@@ -75,7 +75,7 @@ const AcademyView = () => {
             <header className="absolute top-0 left-0 w-full p-8 flex justify-between items-center z-50 bg-gradient-to-b from-[#020408]/80 to-transparent backdrop-blur-sm">
                 <div className="flex items-center gap-6">
                     <button
-                        onClick={() => activeTab === 'DASHBOARD' ? navigate('/') : setActiveTab('DASHBOARD')}
+                        onClick={() => activeTab === 'DASHBOARD' ? navigate('/dashboard') : setActiveTab('DASHBOARD')}
                         className="p-2 rounded-full border border-white/20 hover:bg-white/10 text-white/60 hover:text-white transition-all group"
                     >
                         <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" />

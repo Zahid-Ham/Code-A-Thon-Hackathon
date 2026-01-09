@@ -1,39 +1,117 @@
 import React, { useRef, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronRight, ChevronLeft, Rocket, History, Calendar } from 'lucide-react';
 
 const MissionTimeline = ({
     pastMissions = [],
     presentMissions = [],
     futureMissions = [],
-    events = [], // For compatibility with EventDashboard
+    events = [], // For compatibility with EventDashboard and direct event array
     onSelectEvent,
     selectedEventId,
-    activeCategory = 'PRESENT'
+    activeCategory = 'PRESENT',
+    horizontal = false
 }) => {
     const scrollRef = useRef(null);
 
-    // Performance: Memoize filtering logic
+    // Performance: Memoize filtering logic AND support direct events
     const displayMissions = useMemo(() => {
         // If single events list is provided, use it
-        if (events.length > 0) return events;
+        if (events && events.length > 0) return events;
 
         switch (activeCategory) {
-            case 'PAST':
-                return [...pastMissions];
-            case 'FUTURE':
-                return [...futureMissions];
+            case 'PAST': return [...pastMissions];
+            case 'FUTURE': return [...futureMissions];
             case 'PRESENT':
-            default:
-                return [...presentMissions];
+            default: return [...presentMissions];
         }
     }, [activeCategory, pastMissions, presentMissions, futureMissions, events]);
 
+    // Separate effects to ensure stable hook dependency sizes and fix HMR issues
     useEffect(() => {
-        if (scrollRef.current) {
+        if (!horizontal && scrollRef.current) {
             scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
         }
-    }, [activeCategory]);
+    }, [activeCategory, horizontal]);
+
+    useEffect(() => {
+        if (horizontal && scrollRef.current) {
+            scrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+        }
+    }, [horizontal]);
+
+    // Use MissionCard for consistent vertical layout, or a simplified card for horizontal
+    const Card = ({ evt, index }) => {
+        const isActive = selectedEventId === evt.id;
+
+        if (horizontal) {
+            return (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    onClick={() => onSelectEvent(evt)}
+                    className={`
+                        relative shrink-0 w-72 p-4 rounded-xl cursor-pointer transition-all duration-300
+                        border backdrop-blur-xl group/card
+                        ${isActive
+                            ? 'bg-[#00F0FF]/15 border-[#00F0FF] shadow-[0_0_30px_rgba(0,240,255,0.2)]'
+                            : 'bg-black/40 border-white/10 hover:border-[#00F0FF]/50 hover:bg-white/5'}
+                    `}
+                >
+                    <div className="flex gap-3 items-center">
+                        <div className="shrink-0 w-12 h-12 rounded-lg overflow-hidden border border-white/10 bg-black/40">
+                            <img
+                                src={evt.image || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=150'}
+                                alt=""
+                                className={`w-full h-full object-cover transition-all duration-500 ${isActive ? 'grayscale-0' : 'grayscale group-hover/card:grayscale-0'}`}
+                                onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=150'; }}
+                            />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="text-[9px] font-mono text-[#00F0FF] mb-0.5">
+                                {(() => {
+                                    const d = new Date(evt.date);
+                                    if (isNaN(d.getTime())) return evt.date || 'TBD';
+                                    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+                                })()}
+                            </div>
+                            <h4 className="text-white font-bold text-sm truncate group-hover/card:text-[#00F0FF] transition-colors">
+                                {evt.name || evt.title || evt.label}
+                            </h4>
+                            <div className="text-[9px] text-white/40 uppercase tracking-wider truncate">
+                                {evt.agency || evt.type || 'MISSION'}
+                            </div>
+                        </div>
+                    </div>
+                </motion.div>
+            );
+        } else {
+            return <MissionCard evt={evt} index={index} onSelectEvent={onSelectEvent} selectedEventId={selectedEventId} />;
+        }
+    };
+
+    if (horizontal) {
+        return (
+            <div className="w-full h-32 relative z-50">
+                <div
+                    ref={scrollRef}
+                    className="flex items-center gap-4 px-8 py-4 overflow-x-auto no-scrollbar scroll-smooth"
+                >
+                    {displayMissions.map((evt, idx) => (
+                        <Card key={evt.id || idx} evt={evt} index={idx} />
+                    ))}
+                    {displayMissions.length === 0 && (
+                        <div className="text-white/20 font-mono text-xs uppercase tracking-widest px-8">
+                            SCANNING_SECTOR_FOR_EVENTS...
+                        </div>
+                    )}
+                </div>
+                {/* Horizontal Fade Edges */}
+                <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-black to-transparent pointer-events-none" />
+                <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-black to-transparent pointer-events-none" />
+            </div>
+        );
+    }
 
     return (
         <div className="w-full h-full flex flex-col pt-8">
@@ -57,20 +135,14 @@ const MissionTimeline = ({
                 ref={scrollRef}
                 className="flex-1 overflow-y-auto px-4 pb-48 no-scrollbar relative"
             >
-                {/* Vertical Central Line (The Spine) */}
-                <div className="absolute left-1/2 top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-white/10 via-white/10 to-transparent transform -translate-x-1/2 pointer-events-none">
-                    {/* Animated Pulse on Line */}
-                    <motion.div
-                        animate={{ top: ['0%', '100%'], opacity: [0, 1, 0] }}
-                        transition={{ repeat: Infinity, duration: 4, ease: "linear" }}
-                        className="absolute w-1 h-20 bg-gradient-to-b from-transparent via-[#00F0FF] to-transparent -left-[1.5px]"
-                    />
-                </div>
+                <div
+                    className="absolute left-1/2 top-0 bottom-0 w-[4px] bg-[#2DD4BF] transform -translate-x-1/2 pointer-events-none z-30 shadow-[0_0_15px_rgba(45,212,191,0.4)]"
+                />
 
                 {displayMissions.length > 0 ? (
                     <div className="relative space-y-4">
                         {displayMissions.map((evt, idx) => (
-                            <MissionCard key={evt.id} evt={evt} index={idx} onSelectEvent={onSelectEvent} selectedEventId={selectedEventId} />
+                            <Card key={evt.id || idx} evt={evt} index={idx} />
                         ))}
                     </div>
                 ) : (
@@ -81,8 +153,6 @@ const MissionTimeline = ({
                     </div>
                 )}
             </div>
-
-            {/* Bottom Gradient Fade */}
             <div className="absolute bottom-0 left-0 w-full h-40 bg-gradient-to-t from-black via-black/80 to-transparent z-10 pointer-events-none" />
         </div>
     );

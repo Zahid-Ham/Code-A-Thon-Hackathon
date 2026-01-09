@@ -21,7 +21,7 @@ const PlaceholderPage = ({ title, color }) => (
       {title}
     </motion.h1>
     <p className="mt-4 font-mono text-gray-400 z-10">Destination Module Loaded</p>
-    <a href="/" className="mt-8 px-6 py-2 border border-white/20 rounded-full hover:bg-white/10 transition-colors z-10">
+    <a href="/dashboard" className="mt-8 px-6 py-2 border border-white/20 rounded-full hover:bg-white/10 transition-colors z-10">
       Return to Bridge
     </a>
   </div>

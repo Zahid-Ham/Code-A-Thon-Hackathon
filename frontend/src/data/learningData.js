@@ -1,4 +1,5 @@
 export const missionBriefings = [
+
     // Global Guardians (12 Missions)
     {
         id: 'gg-1', theme: 'Global Guardians', sequence: 1, era: 'Pioneer', title: 'Sputnik 1',
@@ -204,7 +205,8 @@ export const missionBriefings = [
         technicalData: { thrust: '7.5k MN', payload: '100t+' },
         imageUrl: 'https://up.yimg.com/ib/th/id/OIP.J7c2J7Q3n7lKPWMQGbsikQHaEo?pid=Api&rs=1&c=1&qlt=95&w=179&h=112',
         officialLink: 'https://www.spacex.com/vehicles/starship/'
-    }
+    },
+
 ];
 
 export const quizCategories = [

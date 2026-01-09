@@ -253,6 +253,7 @@ const SpaceExam = () => {
                 )}
             </AnimatePresence>
         </div>
+
     );
 };
 
