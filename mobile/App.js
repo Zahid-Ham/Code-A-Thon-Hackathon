@@ -9,36 +9,63 @@ import * as THREE from 'three';
 import { Asset } from 'expo-asset';
 
 // --- AR Launcher with Instructions ---
-const NativeARModal = ({ visible, onClose, onLaunch }) => (
+// --- Native AR Launcher (Dynamic) ---
+const launchNativeAR = async (activeModel) => {
+    // 1. Try to resolve the LOCAL asset (Earth/Mars) to a serve-able URL
+    // Expo allows getting the HTTP URL of the asset from the Dev Server
+    let fileUrl = 'https://raw.githubusercontent.com/google/model-viewer/master/packages/shared-assets/models/Astronaut.glb'; // Default Backup
+    
+    try {
+        const asset = Asset.fromModule(activeModel.asset);
+        await asset.downloadAsync(); // Ensure it's ready
+        // generated uri is usually http://192.168.x.x:8081/assets/...
+        if (asset.uri) {
+            console.log("Local Asset URI:", asset.uri);
+            fileUrl = asset.uri;
+        }
+    } catch (e) {
+        console.log("Failed to load local asset, using backup.");
+    }
+
+    // 2. Construct Intent
+    // Note: Android Scene Viewer is picky about HTTP vs HTTPS. 
+    // If local HTTP fails, it might just open the browser. 
+    // We append a title to make it look professional.
+    const title = activeModel.name || "Space Model";
+    const sceneViewerUrl = `https://arvr.google.com/scene-viewer/1.0?file=${fileUrl}&mode=ar_prefer&title=${title}`;
+
+    if (Platform.OS === 'ios') {
+        Linking.openURL('https://developer.apple.com/augmented-reality/quick-look/');
+        return;
+    }
+
+    try {
+        await Linking.openURL(sceneViewerUrl);
+    } catch (e) {
+        alert("AR Viewer failed. Ensure Google Chrome is installed.");
+    }
+};
+
+const NativeARModal = ({ visible, onClose, onLaunch, activeModelName }) => (
     <Modal visible={visible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>🚀 Launching True AR</Text>
+                <Text style={styles.modalTitle}>🚀 Launching {activeModelName}</Text>
                 <Text style={styles.modalText}>
-                    To successfully place the model:
-                    {"\n\n"}1. Find a <Text style={styles.bold}>Textured Surface</Text> (Rug, Carpet, Wood).
-                    {"\n"}2. Avoid <Text style={styles.bold}>Reflective Tiles</Text> or plain white floors.
-                    {"\n"}3. Move your phone <Text style={styles.bold}>Side-to-Side</Text> slowly.
+                    Native AR uses Google's Engine for surface detection.
+                    {"\n\n"}1. <Text style={styles.bold}>Point at a textured floor</Text> (Rug/Wood).
+                    {"\n"}2. Move phone <Text style={styles.bold}>side-to-side</Text>.
+                    {"\n"}3. If it fails, try a brighter room.
                 </Text>
                 <View style={styles.modalActions}>
                     <TouchableOpacity onPress={onClose} style={styles.modalBtnSec}><Text style={styles.btnTextSec}>Cancel</Text></TouchableOpacity>
-                    <TouchableOpacity onPress={onLaunch} style={styles.modalBtnPri}><Text style={styles.btnTextPri}>I Understand, Launch!</Text></TouchableOpacity>
+                    <TouchableOpacity onPress={onLaunch} style={styles.modalBtnPri}><Text style={styles.btnTextPri}>Launch AR</Text></TouchableOpacity>
                 </View>
             </View>
         </View>
     </Modal>
 );
 
-const launchNativeAR = async () => {
-    const modelUrl = 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb'; 
-    const sceneViewerUrl = `https://arvr.google.com/scene-viewer/1.0?file=${modelUrl}&mode=ar_prefer`;
-    if (Platform.OS === 'ios') {
-        Linking.openURL('https://developer.apple.com/augmented-reality/quick-look/');
-        return;
-    }
-    try { await Linking.openURL(sceneViewerUrl); } 
-    catch (e) { alert("Could not launch AR Viewer. Please ensure Google Chrome is installed."); }
-};
 
 // --- Compass Camera (Orbit) ---
 const CompassCamera = ({ isLocked, setDebugHint, distance, setDistance, manualOrbit }) => {
@@ -223,7 +250,8 @@ export default function App() {
       <NativeARModal 
           visible={showNativeModal} 
           onClose={() => setShowNativeModal(false)}
-          onLaunch={() => { setShowNativeModal(false); launchNativeAR(); }}
+          onLaunch={() => { setShowNativeModal(false); launchNativeAR(activeModel); }}
+          activeModelName={activeModel.name}
       />
 
       <View style={styles.bottomContainer} pointerEvents="box-none">
