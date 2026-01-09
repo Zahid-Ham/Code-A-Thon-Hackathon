@@ -4,6 +4,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import Hyperspace from './Hyperspace';
 import { useSound } from '../contexts/SoundContext';
 
+import SpaceChatbot from './SpaceChatbot';
+
 const TransitionLayout = () => {
   const location = useLocation();
   const outlet = useOutlet();
@@ -51,6 +53,9 @@ const TransitionLayout = () => {
             </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Global AI Assistant */}
+      <SpaceChatbot />
     </>
   );
 };

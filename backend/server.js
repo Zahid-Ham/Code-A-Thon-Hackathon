@@ -179,6 +179,51 @@ app.post('/api/mission-intel', async (req, res) => {
   }
 });
 
+// --- SPACE CHATBOT (GROQ AI) ---
+app.post('/api/chat', async (req, res) => {
+    console.log(`[CHAT] Incoming Request: ${req.body.message}`);
+    const { message } = req.body;
+    const apiKey = process.env.GROQ_API_KEY;
+
+    // Simulation Mode if Key is missing
+    if (!apiKey || apiKey === 'YOUR_GROQ_API_KEY_HERE') {
+        return res.json({ 
+            reply: "I am running in simulation mode. I can answer space questions! Did you know Saturn's density is so low it would float in water?" 
+        });
+    }
+
+    try {
+        const Groq = require('groq-sdk');
+        const groq = new Groq({ apiKey });
+        
+        const systemPrompt = `
+            You are "Cosmos", an advanced AI assistant specialized ONLY in Astronomy, Space Exploration, Physics, and Rocketry.
+            
+            RULES:
+            1. Answering ONLY questions related to Space/Universe.
+            2. If a user asks about non-space topics (e.g., cooking, politics, coding), politely refuse and steer back to space.
+            3. Keep answers concise (under 3 sentences) but fascinating.
+            4. Use a wondrous, scientific tone.
+        `;
+
+        const chatCompletion = await groq.chat.completions.create({
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: message }
+            ],
+            model: 'llama-3.1-8b-instant',
+            temperature: 0.7,
+            max_tokens: 150
+        });
+
+        res.json({ reply: chatCompletion.choices[0].message.content });
+
+    } catch (error) {
+        console.error('[Chat] Groq Error:', error.message);
+        res.status(500).json({ error: 'Comms link unstable.' });
+    }
+});
+
 app.get('/', (req, res) => {
   res.send('SpaceScope API is initializing... Status: Void Active.');
 });
@@ -354,6 +399,48 @@ app.get('/api/celestial-events', async (req, res) => {
   }
 
   res.json(events);
+});
+
+// --- IMPACT ANALYSIS (GROQ AI) ---
+app.post('/api/impact-analysis', async (req, res) => {
+    const { eventName, eventType, location } = req.body;
+    const apiKey = process.env.GROQ_API_KEY;
+
+    // Simulation Fallback
+    if (!apiKey || apiKey === 'YOUR_GROQ_API_KEY_HERE') {
+        return res.json({ 
+            impact: "Simulation: This event has a moderate impact on local visibility. In future cycles, similar patterns may increase atmospheric interference by 15%."
+        });
+    }
+
+    try {
+        const Groq = require('groq-sdk');
+        const groq = new Groq({ apiKey });
+        
+        const prompt = `
+            Analyze the "Impact" of this space/earth event:
+            Event: ${eventName} (${eventType})
+            Location: Lat ${location?.lat}, Lng ${location?.lng}
+
+            Provide a 2-sentence expert assessment on:
+            1. Current Impact on the region (visibility/environment).
+            2. Future Impact/Prediction.
+            
+            Tone: Scientific, Concise.
+        `;
+
+        const chatCompletion = await groq.chat.completions.create({
+            messages: [{ role: 'user', content: prompt }],
+            model: 'llama-3.1-8b-instant',
+            temperature: 0.7,
+            max_tokens: 100
+        });
+
+        res.json({ impact: chatCompletion.choices[0].message.content });
+    } catch (error) {
+        console.error('[Impact] Groq Error:', error.message);
+        res.status(500).json({ error: 'Analysis failed.' });
+    }
 });
 
 
