@@ -7,6 +7,7 @@ const MODEL_ASSETS = {
     'earth': require('../../assets/models/earth.glb'),
     'moon': require('../../assets/models/moon.glb'),
     'mars': require('../../assets/models/mars.glb'),
+    'hubble': require('../../assets/models/hubble_space_telescope.glb'),
 };
 
 export const AR_MODELS = {
@@ -39,7 +40,16 @@ export const AR_MODELS = {
       impact: 'The most likely candidate for future human colonization. Contains water ice and signs of ancient rivers.',
     }
   ],
-  // Empty sections for now as models are missing
-  Satellites: [],
+  Satellites: [
+     {
+      id: 'hubble', 
+      name: 'Hubble Telescope', 
+      asset: MODEL_ASSETS['hubble'], 
+      scale: 0.05,
+      type: 'Space Observatory',
+      purpose: 'Deep Space Exploration',
+      impact: 'Captured the "Pillars of Creation" and confirmed the Universe is expanding.'
+     }
+  ],
   Stations: []
 };

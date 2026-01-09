@@ -11,6 +11,9 @@ require('dotenv').config(); // Load environment variables
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT} (Accessible via LAN)`);
+});
 const NASA_API_KEY = process.env.NASA_API_KEY || 'DEMO_KEY';
 
 // Initialize Services
@@ -182,21 +185,23 @@ app.post('/api/mission-intel', async (req, res) => {
 // --- SPACE CHATBOT (GROQ AI) ---
 app.post('/api/chat', async (req, res) => {
     console.log(`[CHAT] Incoming Request: ${req.body.message}`);
-    const { message } = req.body;
+    const { message, mobileMode } = req.body;
     const apiKey = process.env.GROQ_API_KEY;
 
     // Simulation Mode if Key is missing
     if (!apiKey || apiKey === 'YOUR_GROQ_API_KEY_HERE') {
-        return res.json({ 
-            reply: "I am running in simulation mode. I can answer space questions! Did you know Saturn's density is so low it would float in water?" 
-        });
+        const reply = mobileMode 
+            ? "Simulation: Audio Link Active. Asking about planets?" 
+            : "I am running in simulation mode. I can answer space questions! Did you know Saturn's density is so low it would float in water?";
+        return res.json({ reply });
     }
 
     try {
         const Groq = require('groq-sdk');
         const groq = new Groq({ apiKey });
         
-        const systemPrompt = `
+        // Dynamic System Prompt based on Mode
+        let systemPrompt = `
             You are "Cosmos", an advanced AI assistant specialized ONLY in Astronomy, Space Exploration, Physics, and Rocketry.
             
             RULES:
@@ -213,7 +218,7 @@ app.post('/api/chat', async (req, res) => {
             ],
             model: 'llama-3.1-8b-instant',
             temperature: 0.7,
-            max_tokens: 150
+            max_tokens: mobileMode ? 60 : 150
         });
 
         res.json({ reply: chatCompletion.choices[0].message.content });
@@ -480,10 +485,6 @@ app.post('/api/star-chart', async (req, res) => {
           zoom: 2 // Wide field of view
         }
       }
-    }, {
-      headers: {
-        'Authorization': `Basic ${authString} `
-      }
     });
 
     // Return the image URL provided by the API
@@ -494,6 +495,63 @@ app.post('/api/star-chart', async (req, res) => {
     res.status(500).json({ error: 'Failed to generate star chart' });
   }
 });
+
+const multer = require('multer');
+// Configure Multer Storage (Keep Extension for Groq)
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        // Ensure directory exists
+        const fs = require('fs');
+        const dir = 'uploads/';
+        if (!fs.existsSync(dir)){
+            fs.mkdirSync(dir);
+        }
+        cb(null, dir);
+    },
+    filename: function (req, file, cb) {
+        // Use original name or timestamp + ext
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'audio-' + uniqueSuffix + '.m4a'); // Force .m4a for mobile uploads
+    }
+});
+
+const upload = multer({ storage: storage });
+
+// --- SPEECH-TO-TEXT (GROQ WHISPER) ---
+app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No audio file uploaded.' });
+        }
+
+        const apiKey = process.env.GROQ_API_KEY;
+        if (!apiKey || apiKey === 'YOUR_GROQ_API_KEY_HERE') {
+            return res.json({ text: "Simulation: Voice Transcribed. Tell me about Mars." });
+        }
+
+        const Groq = require('groq-sdk');
+        const groq = new Groq({ apiKey });
+        const fs = require('fs');
+
+        // Groq Whisper API
+        const translation = await groq.audio.transcriptions.create({
+            file: fs.createReadStream(req.file.path),
+            model: "whisper-large-v3",
+            response_format: "json",
+            temperature: 0.0
+        });
+
+        // Cleanup
+        fs.unlinkSync(req.file.path);
+
+        res.json({ text: translation.text });
+
+    } catch (error) {
+        console.error('[Transcribe] Error:', error.message);
+        res.status(500).json({ error: 'Voice processing failed.' });
+    }
+});
+
 
 // --- VISIBILITY INTELLIGENCE API ---
 app.post('/api/visibility-forecast', (req, res) => {

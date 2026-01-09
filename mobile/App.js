@@ -7,9 +7,8 @@ import { DeviceMotion } from 'expo-sensors';
 import { AR_MODELS } from './src/data/models';
 import * as THREE from 'three';
 import { Asset } from 'expo-asset';
+import VoiceChatbot from './src/components/VoiceChatbot';
 
-// --- AR Launcher with Instructions ---
-// --- Native AR Launcher (Dynamic) ---
 // --- Native AR Launcher (Dynamic) ---
 const launchNativeAR = async (activeModel) => {
     // 1. Try to resolve the LOCAL asset (Earth/Mars) to a serve-able URL
@@ -234,6 +233,9 @@ export default function App() {
       {/* Radar Hint */}
       {hint !== "" && <View style={styles.radar}><Text style={styles.radarText}>{hint}</Text></View>}
 
+      {/* Voice Chatbot Overlay */}
+      <VoiceChatbot />
+
       <SafeAreaView style={styles.topContainer} pointerEvents="box-none">
           <View style={styles.topRow}>
               {/* Distance Controls */}
@@ -274,7 +276,14 @@ export default function App() {
           </TouchableOpacity>
 
           <View style={styles.selector}>
+             {/* PLANETS */}
              {AR_MODELS.Planets.map(m => (
+                 <TouchableOpacity key={m.id} onPress={() => setActiveModel(m)} style={[styles.tab, activeModel.id === m.id && styles.activeTab]}>
+                     <Text style={[styles.tabText, activeModel.id === m.id && styles.activeTabText]}>{m.name}</Text>
+                 </TouchableOpacity>
+             ))}
+             {/* SATELLITES */}
+             {AR_MODELS.Satellites.map(m => (
                  <TouchableOpacity key={m.id} onPress={() => setActiveModel(m)} style={[styles.tab, activeModel.id === m.id && styles.activeTab]}>
                      <Text style={[styles.tabText, activeModel.id === m.id && styles.activeTabText]}>{m.name}</Text>
                  </TouchableOpacity>
