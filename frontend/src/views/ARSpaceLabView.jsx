@@ -163,9 +163,23 @@ const LoadingHologram = ({ position, scale = 1 }) => {
     );
 };
 
+// --- Debug Overlay Component ---
+const LogOverlay = ({ logs }) => (
+    <div className="absolute top-20 left-4 z-[9999] pointer-events-none p-2 bg-black/60 text-green-400 font-mono text-[10px] w-64 h-32 overflow-hidden rounded border border-green-500/30">
+        <div className="font-bold border-b border-green-500/30 mb-1">AR DEBUG LOG</div>
+        <div className="flex flex-col-reverse">
+            {logs.slice(-8).map((log, i) => (
+                <div key={i} className="whitespace-nowrap overflow-hidden text-ellipsis">
+                    {log}
+                </div>
+            ))}
+        </div>
+    </div>
+);
+
 // Reticle Component: Lives INSIDE XRHitTest component to visualize position
 // and reports world position to parent for "Tap Anywhere" logic via Ref.
-const ReticleContent = ({ setHitPoint }) => {
+const ReticleContent = ({ setHitPoint, addLog }) => {
     const ref = useRef();
     const frameCount = useRef(0);
     
@@ -179,8 +193,8 @@ const ReticleContent = ({ setHitPoint }) => {
 
             // LOGGING (Throttled): Check if Reticle is actually tracking
             frameCount.current += 1;
-            if (frameCount.current % 60 === 0) {
-                 console.log("[AR-DEBUG] Reticle Tracking Configured. Current Pos:", vec.toArray());
+            if (frameCount.current % 120 === 0) { // Slower logging for UI
+                 if (addLog) addLog(`Reticle Active: ${vec.x.toFixed(1)}, ${vec.y.toFixed(1)}, ${vec.z.toFixed(1)}`);
             }
         }
     });
@@ -216,14 +230,9 @@ class ErrorBoundary extends React.Component {
     render() { if (this.state.hasError) return this.props.fallback || null; return this.props.children; }
 }
 
-const ARScene = ({ activeModel, isPlaced, setIsPlaced, placedPosition, setPlacedPosition, modelRotation, modelScale, onModelSelect, setHitPoint }) => {
+const ARScene = ({ activeModel, isPlaced, setIsPlaced, placedPosition, setPlacedPosition, modelRotation, modelScale, onModelSelect, setHitPoint, addLog }) => {
     const isPresenting = useThree((state) => state.gl.xr.isPresenting);
     
-    // Log Rendering State
-    useEffect(() => {
-        console.log(`[AR-DEBUG] ARScene Rendered. isPresenting: ${isPresenting}, isPlaced: ${isPlaced}, hasPlacedPosition: ${!!placedPosition}`);
-    });
-
     return (
         <>
             <ambientLight intensity={1} />
@@ -248,9 +257,9 @@ const ARScene = ({ activeModel, isPlaced, setIsPlaced, placedPosition, setPlaced
             {/* AR Mode */}
             {isPresenting && !isPlaced && (
                 <XRHitTest mode="point" onSelect={() => {
-                   console.log("[AR-DEBUG] XRHitTest Native onSelect Triggered (Fallback)");
+                   if (addLog) addLog("NATIVE HIT-TEST SELECT TRIGGERED");
                 }}>
-                    <ReticleContent setHitPoint={setHitPoint} />
+                    <ReticleContent setHitPoint={setHitPoint} addLog={addLog} />
                 </XRHitTest>
             )}
 
@@ -340,11 +349,14 @@ const ARSpaceLabView = () => {
   const [useGyro, setUseGyro] = useState(false); // Fallback mode
   const [showInfo, setShowInfo] = useState(false);
   const [isInAR, setIsInAR] = useState(false); // Track AR session state
+  
+  // Debug Logging State
+  const [logs, setLogs] = useState([]); 
 
-  // Debug: Monitor isPlaced changes
-  useEffect(() => {
-      console.log(`[AR-DEBUG] State Update: isPlaced=${isPlaced}, position=${placedPosition ? placedPosition.toArray() : 'null'}`);
-  }, [isPlaced, placedPosition]);
+  const addLog = (msg) => {
+      setLogs(prev => [...prev.slice(-10), msg]); // Keep last 10
+      console.log("[AR-LOG]", msg);
+  };
 
   // Hit Point Ref for Reticle communication
   const hitPointRef = useRef(null);
@@ -369,16 +381,16 @@ const ARSpaceLabView = () => {
     },
     // Handle Tap for Placement - GLOBAL LISTENER on the container
     onClick: ({ event }) => {
-        console.log("[AR-DEBUG] Click/Tap Detected on Container", event);
+        addLog("TAP DETECTED");
         
         // Debug Failure Conditions
-        if (!isInAR) console.warn("[AR-DEBUG] Placement Failed: Not in AR Mode");
-        if (isPlaced) console.warn("[AR-DEBUG] Placement Failed: Already Placed");
-        if (!hitPointRef.current) console.warn("[AR-DEBUG] Placement Failed: No Hit Point (Reticle not tracking?)");
+        if (!isInAR) addLog("FAIL: Not in AR");
+        if (isPlaced) addLog("FAIL: Already Placed");
+        if (!hitPointRef.current) addLog("FAIL: No Hit Point");
 
         // If in AR, not placed, and we have a valid hit point -> PLACE IT.
         if (isInAR && !isPlaced && hitPointRef.current) {
-            console.log("Tap Detected via useGesture! Placing Model at:", hitPointRef.current);
+            addLog(`PLACING AT: ${hitPointRef.current.x.toFixed(2)}`);
             setPlacedPosition(hitPointRef.current);
             setIsPlaced(true);
         }
@@ -403,12 +415,13 @@ const ARSpaceLabView = () => {
   }, []);
 
   const handleEnterAR = async () => {
-      console.log("Attempting to enter AR...");
+      addLog("Entering AR...");
       try {
           await store.enterAR();
           setIsInAR(true); // Enable custom gestures
-          console.log("Entered AR Session");
+          addLog("Session Started");
       } catch (e) {
+          addLog("Error Entering AR");
           console.error("Failed to enter AR:", e);
           const confirmFallback = window.confirm(
               "ARCore not found on this device.\n\nSwitch to '3D Gyro Mode' instead? (You can move your phone to look around)"
@@ -426,6 +439,7 @@ const ARSpaceLabView = () => {
       setModelRotation([0,0,0]);
       setModelScale(1);
       setShowInfo(false);
+      addLog("Reset");
   };
 
   const onModelSelect = () => {
@@ -435,6 +449,9 @@ const ARSpaceLabView = () => {
 
   return (
     <div {...bind()} className="relative w-full h-screen bg-black overflow-hidden font-sans touch-none">
+      
+      {/* On-Screen Debug Overlay */}
+      <LogOverlay logs={logs} />
       
       {/* HUD: Back & Info */}
       <div className="absolute top-0 left-0 w-full p-6 z-40 pointer-events-none">
@@ -520,6 +537,7 @@ const ARSpaceLabView = () => {
                 modelScale={modelScale}
                 onModelSelect={onModelSelect}
                 setHitPoint={setHitPoint}
+                addLog={addLog}
             />
             {/* Controls Logic */}
             {!store.inAR && !useGyro && !gesturesEnabled && <OrbitControls makeDefault />} 
