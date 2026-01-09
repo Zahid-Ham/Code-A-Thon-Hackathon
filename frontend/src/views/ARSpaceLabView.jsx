@@ -77,19 +77,51 @@ const AR_MODELS = {
   ]
 };
 
-// Preload all models for smooth transitions
-Object.values(AR_MODELS).forEach(category => {
-    category.forEach(model => useGLTF.preload(model.url));
-});
-
 // --- Components ---
+
+// OPTIMIZATION: Removed aggressive pre-loading of 50MB+ assets to prevent network congestion.
+// Assets will load on-demand with a beautiful "Constructing..." state.
+
+// Material Downgrade Utility for Mobile Performance
+const optimizeMaterials = (scene) => {
+    scene.traverse((child) => {
+        if (child.isMesh) {
+            // Disable expensive shadows
+            child.castShadow = false;
+            child.receiveShadow = false;
+
+            // Simplify materials
+            if (child.material) {
+                // Lower precision
+                child.material.precision = 'mediump';
+                // Disable extensive lighting calcs if possible
+                child.material.flatShading = false;
+                
+                // Reduce texture quality overhead
+                if (child.material.map) {
+                    child.material.map.anisotropy = 1; // Disable anisotropic filtering
+                    child.material.map.generateMipmaps = false; 
+                    child.material.map.minFilter = THREE.LinearFilter; // Faster sampling
+                }
+            }
+        }
+    });
+};
 
 const InteractiveModel = ({ url, initialScale, position, rotation, scaleFactor, onSelect }) => {
   const { scene } = useGLTF(url);
   const ref = useRef();
   
+  // Optimize scene ONCE when loaded
+  React.useLayoutEffect(() => {
+      optimizeMaterials(scene);
+  }, [scene]);
+
   const finalScale = initialScale * scaleFactor;
 
+  // Clone scene to allow independent instances if needed, or just use primitive if single instance
+  // Using primitive with the cached scene is more memory efficient if we don't need unique mutations per instance
+  
   return (
     <primitive 
       ref={ref}
@@ -101,10 +133,34 @@ const InteractiveModel = ({ url, initialScale, position, rotation, scaleFactor, 
           e.stopPropagation();
           onSelect();
       }}
-    >
-      {/* Selection Highlight (optional, simplified) */}
-    </primitive>
+    />
   );
+};
+
+// Loading State: A pulsing "Constructing" hologram that appears while the heavy model downloads
+const LoadingHologram = ({ position, scale = 1 }) => {
+    const ref = useRef();
+    useFrame((state) => {
+        if (ref.current) {
+            // Spin and Pulse
+            ref.current.rotation.y += 0.05;
+            ref.current.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 5) * 0.1);
+        }
+    });
+
+    return (
+        <group position={position}>
+             <mesh ref={ref}>
+                <sphereGeometry args={[0.2, 16, 16]} />
+                <meshBasicMaterial color="#00ffff" wireframe transparent opacity={0.3} />
+            </mesh>
+            {/* "Loading" text could go here, or just the visual cue */}
+             <mesh rotation-x={-Math.PI / 2}>
+                <ringGeometry args={[0.15, 0.16, 32]} />
+                <meshBasicMaterial color="cyan" transparent opacity={0.5} />
+            </mesh>
+        </group>
+    );
 };
 
 // Reticle Component: Lives INSIDE XRHitTest component to visualize position
@@ -177,8 +233,7 @@ const ARScene = ({ activeModel, isPlaced, setIsPlaced, placedPosition, setPlaced
             {/* AR Mode */}
             {isPresenting && !isPlaced && (
                 <XRHitTest mode="point" onSelect={() => {
-                    // Fallback: If XRHitTest onSelect WORKS, we can use it too.
-                    // But our global handler should take precedence or work in tandem.
+                   // Global handler preferred
                 }}>
                     <ReticleContent setHitPoint={setHitPoint} />
                 </XRHitTest>
@@ -186,7 +241,8 @@ const ARScene = ({ activeModel, isPlaced, setIsPlaced, placedPosition, setPlaced
 
             {isPresenting && isPlaced && placedPosition && (
                  <ErrorBoundary fallback={null}>
-                     <Suspense fallback={null}>
+                     {/* Progressive Loading: Show "Constructing" hologram while fetching 35MB model */}
+                     <Suspense fallback={<LoadingHologram position={placedPosition} />}>
                          <InteractiveModel 
                             url={activeModel.url} 
                             initialScale={activeModel.scale} 
