@@ -5,6 +5,7 @@ import { Activity, ShieldAlert, Thermometer, Droplets, Wind, Info, X, Zap } from
 
 const EarthImpactSim = () => {
     const [countries, setCountries] = useState({ features: [] });
+    const [loadingMap, setLoadingMap] = useState(true); // Add loading state
     const [activeLayer, setActiveLayer] = useState('NDVI'); // NDVI, POLLUTION
     const [hoveredCountry, setHoveredCountry] = useState(null);
     const [selectedReport, setSelectedReport] = useState(null);
@@ -20,9 +21,14 @@ const EarthImpactSim = () => {
 
     // Live Telemetry Polling
     useEffect(() => {
+        setLoadingMap(true);
         fetch('https://raw.githubusercontent.com/vasturiano/react-globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson')
             .then(res => res.json())
-            .then(setCountries);
+            .then(data => {
+                setCountries(data);
+                setLoadingMap(false);
+            })
+            .catch(() => setLoadingMap(false));
 
         const fetchTelemetry = async () => {
             try {
@@ -117,34 +123,41 @@ const EarthImpactSim = () => {
 
             {/* Globe Layer */}
             <div className="absolute inset-0 z-0">
-                <Globe
-                    ref={globeEl}
-                    globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
-                    backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
-                    polygonsData={countries.features}
-                    polygonSideColor={() => 'rgba(255, 255, 255, 0.1)'}
-                    polygonStrokeColor={() => 'rgba(255, 255, 255, 0.15)'}
-                    polygonCapColor={layerConfig.color}
-                    polygonAltitude={(d) => {
-                        if (activeLayer === 'STANDARD') return 0.01;
-                        const val = activeLayer === 'NDVI'
-                            ? (d.properties.GDP_MD_EST / 200000) % 0.1
-                            : (d.properties.POP_EST / 100000000) % 0.15;
-                        return val + 0.01;
-                    }}
-                    polygonLabel={({ properties: d }) => `
+                {loadingMap ? (
+                    <div className="flex flex-col items-center justify-center h-full">
+                        <Activity size={48} className="text-cyan-400 animate-spin mb-4" />
+                        <div className="text-xs font-mono text-cyan-400 animate-pulse uppercase tracking-widest">Initializing Planetary Model...</div>
+                    </div>
+                ) : (
+                    <Globe
+                        ref={globeEl}
+                        globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
+                        backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
+                        polygonsData={countries.features}
+                        polygonSideColor={() => 'rgba(255, 255, 255, 0.1)'}
+                        polygonStrokeColor={() => 'rgba(255, 255, 255, 0.15)'}
+                        polygonCapColor={layerConfig.color}
+                        polygonAltitude={(d) => {
+                            if (activeLayer === 'STANDARD') return 0.01;
+                            const val = activeLayer === 'NDVI'
+                                ? (d.properties.GDP_MD_EST / 200000) % 0.1
+                                : (d.properties.POP_EST / 100000000) % 0.15;
+                            return val + 0.01;
+                        }}
+                        polygonLabel={({ properties: d }) => `
             <div class="glass-panel p-3 border border-white/10 text-white font-mono text-[10px]">
               <div class="text-cyan-400 font-bold mb-1">${d.NAME}</div>
               <div class="text-white/40 uppercase tracking-tighter shrink-0">${layerConfig.label}</div>
             </div>
           `}
-                    onPolygonClick={(d) => fetchTechnicalReport(d)}
-                    onPolygonHover={(d) => {
-                        setHoveredCountry(d);
-                        if (d) setLastHoveredCountry(d);
-                    }}
-                    polygonsTransitionDuration={1000}
-                />
+                        onPolygonClick={(d) => fetchTechnicalReport(d)}
+                        onPolygonHover={(d) => {
+                            setHoveredCountry(d);
+                            if (d) setLastHoveredCountry(d);
+                        }}
+                        polygonsTransitionDuration={1000}
+                    />
+                )}
             </div>
 
             {/* Control Overlay */}

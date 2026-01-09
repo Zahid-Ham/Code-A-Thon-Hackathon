@@ -80,7 +80,7 @@ const SpaceExam = () => {
     }
 
     return (
-        <div className="w-full h-full p-8 flex flex-col glass-panel border border-white/10 bg-[#0a0f18]/90 overflow-hidden relative">
+        <div className="w-full h-full p-6 flex flex-col glass-panel border border-white/10 bg-[#0a0f18]/90 overflow-y-auto relative">
             <AnimatePresence mode="wait">
                 {!selectedCategory ? (
                     <motion.div
@@ -121,7 +121,7 @@ const SpaceExam = () => {
                         animate={{ opacity: 1 }}
                         className="flex-1 flex flex-col items-center justify-center gap-6"
                     >
-                        <RefreshCcw size={48} className="text-cyan-400 animate-spin" />
+                        <RefreshCcw size={48} className="text-cyan-400" style={{ animation: 'spin 1s linear infinite' }} />
                         <div className="text-center">
                             <div className="text-xs font-mono text-cyan-400 animate-pulse tracking-[0.5em] uppercase mb-2">Syncing Intelligence Pool</div>
                             <div className="text-[10px] text-white/30 uppercase font-mono">Verifying Technical Constants via Groq Engine...</div>
@@ -133,7 +133,7 @@ const SpaceExam = () => {
                         initial={{ x: 20, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
                         exit={{ x: -20, opacity: 0 }}
-                        className="flex-1 flex flex-col"
+                        className="flex flex-col min-h-full"
                     >
                         {/* HUD Header */}
                         <div className="flex justify-between items-center mb-8 pb-6 border-b border-white/5">
@@ -150,8 +150,8 @@ const SpaceExam = () => {
                             </div>
                         </div>
 
-                        <div className="flex-1 flex flex-col">
-                            <h3 className="text-2xl text-white mb-10 font-light italic leading-relaxed">"{questionData.question}"</h3>
+                        <div className="flex flex-col flex-1">
+                            <h3 className="text-xl text-white mb-6 font-light italic leading-relaxed">"{questionData.question}"</h3>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 content-start">
                                 {questionData.options.map((option, idx) => (
@@ -175,12 +175,12 @@ const SpaceExam = () => {
                                 ))}
                             </div>
 
-                            <AnimatePresence shadow>
+                            <AnimatePresence>
                                 {isAnswered && (
                                     <motion.div
                                         initial={{ y: 10, opacity: 0 }}
                                         animate={{ y: 0, opacity: 1 }}
-                                        className="mt-8 p-4 bg-cyan-500/5 border-l-2 border-cyan-500 rounded-r-lg"
+                                        className="mt-4 p-3 bg-cyan-500/5 border-l-2 border-cyan-500 rounded-r-lg"
                                     >
                                         <div className="text-[9px] font-mono text-cyan-400 mb-1 uppercase tracking-widest">Technical Breakdown</div>
                                         <p className="text-xs text-white/70 leading-relaxed italic">{questionData.explanation}</p>
@@ -189,17 +189,17 @@ const SpaceExam = () => {
                             </AnimatePresence>
                         </div>
 
-                        <div className="mt-8 flex justify-end">
+                        <div className="mt-6 pt-4 border-t border-white/5 flex justify-end shrink-0">
                             <button
                                 onClick={handleNext}
                                 disabled={!isAnswered}
                                 className={`
-                  flex items-center gap-3 px-10 py-4 rounded-full font-bold tracking-[0.2em] transition-all
-                  ${isAnswered ? 'bg-cyan-500 text-black shadow-[0_0_20px_rgba(0,240,255,0.4)]' : 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5'}
-                `}
+                                    flex items-center gap-3 px-8 py-3 rounded-full font-bold tracking-[0.15em] transition-all text-sm
+                                    ${isAnswered ? 'bg-cyan-500 text-black shadow-[0_0_20px_rgba(0,240,255,0.4)]' : 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5'}
+                                `}
                             >
                                 {currentQuestionIdx === randomizedQuestions.length - 1 ? 'FINALIZE PROTOCOL' : 'CONTINUE SEQUENCE'}
-                                <ArrowRight size={20} />
+                                <ArrowRight size={18} />
                             </button>
                         </div>
                     </motion.div>
@@ -252,10 +252,6 @@ const SpaceExam = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
-
-            {/* Decorative Lines */}
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
-            <div className="absolute bottom-0 right-0 w-1/3 h-[1px] bg-cyan-500/20" />
         </div>
     );
 };
