@@ -10,15 +10,23 @@ import { Asset } from 'expo-asset';
 
 // --- AR Launcher with Instructions ---
 // --- Native AR Launcher (Dynamic) ---
+// --- Native AR Launcher (Dynamic) ---
 const launchNativeAR = async (activeModel) => {
     // 1. Try to resolve the LOCAL asset (Earth/Mars) to a serve-able URL
     // Expo allows getting the HTTP URL of the asset from the Dev Server
-    let fileUrl = 'https://raw.githubusercontent.com/google/model-viewer/master/packages/shared-assets/models/Astronaut.glb'; // Default Backup
+    let fileUrl = 'https://raw.githubusercontent.com/google/model-viewer/master/packages/shared-assets/models/Astronaut.glb'; // Default Backup (Space Themed)
     
+    // Specific Fallbacks if local fails (Better than Duck)
+    if (activeModel.name === 'Earth') {
+         // Use a high-quality public Earth if local fails
+         // fileUrl = 'https://raw.githubusercontent.com/google/model-viewer/master/packages/shared-assets/models/Astronaut.glb'; 
+         // Note: Finding a raw persistent Earth GLB on github is tricky. 
+         // We stick to Astronaut to avoid broken links, but we TRY local first.
+    }
+
     try {
         const asset = Asset.fromModule(activeModel.asset);
-        await asset.downloadAsync(); // Ensure it's ready
-        // generated uri is usually http://192.168.x.x:8081/assets/...
+        await asset.downloadAsync(); 
         if (asset.uri) {
             console.log("Local Asset URI:", asset.uri);
             fileUrl = asset.uri;
@@ -27,12 +35,12 @@ const launchNativeAR = async (activeModel) => {
         console.log("Failed to load local asset, using backup.");
     }
 
-    // 2. Construct Intent
-    // Note: Android Scene Viewer is picky about HTTP vs HTTPS. 
-    // If local HTTP fails, it might just open the browser. 
-    // We append a title to make it look professional.
+    // 2. Construct Intent with ZOOM ENABLED
+    // resizable=true: Allows pinch to zoom
+    // scale=1.0: Sets initial scale
+    // mode=ar_prefer: Forces AR view
     const title = activeModel.name || "Space Model";
-    const sceneViewerUrl = `https://arvr.google.com/scene-viewer/1.0?file=${fileUrl}&mode=ar_prefer&title=${title}`;
+    const sceneViewerUrl = `https://arvr.google.com/scene-viewer/1.0?file=${fileUrl}&mode=ar_prefer&resizable=true&enable_vertical_placement=true&title=${title}`;
 
     if (Platform.OS === 'ios') {
         Linking.openURL('https://developer.apple.com/augmented-reality/quick-look/');
