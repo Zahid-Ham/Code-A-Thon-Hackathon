@@ -77,43 +77,31 @@ const AR_MODELS = {
   ]
 };
 
+// Preload all models for smooth transitions
+Object.values(AR_MODELS).forEach(category => {
+    category.forEach(model => useGLTF.preload(model.url));
+});
+
 // --- Components ---
 
 // Update imports to include useGesture
 import { useGesture } from '@use-gesture/react';
 import { X } from 'lucide-react';
 
-const InteractiveModel = ({ url, initialScale, position, rotation, scaleFactor, onSelect, isGhost = false }) => {
+const InteractiveModel = ({ url, initialScale, position, rotation, scaleFactor, onSelect }) => {
   const { scene } = useGLTF(url);
   const ref = useRef();
   
   const finalScale = initialScale * scaleFactor;
 
-  // Clone scene for Ghost to avoid modifying cached GLTF
-  const ghostScene = React.useMemo(() => {
-      if (!isGhost) return scene;
-      const clone = scene.clone();
-      clone.traverse((child) => {
-          if (child.isMesh) {
-              child.material = child.material.clone();
-              child.material.transparent = true;
-              child.material.opacity = 0.5;
-              child.material.color.setHex(0x00ffff); // Cyan tint
-              child.material.wireframe = true; // Optional: Wireframe for "Hologram" feel
-          }
-      });
-      return clone;
-  }, [scene, isGhost]);
-
   return (
     <primitive 
       ref={ref}
-      object={isGhost ? ghostScene : scene} 
+      object={scene} 
       position={position} 
       rotation={rotation}
       scale={[finalScale, finalScale, finalScale]}
       onClick={(e) => {
-          if (isGhost) return;
           e.stopPropagation();
           onSelect();
       }}
@@ -159,44 +147,27 @@ const ARScene = ({ activeModel, isPlaced, setIsPlaced, placedPosition, setPlaced
                 <XRHitTest 
                     mode="point" 
                     onSelect={(e) => {
-                         // This fires when user taps automatically if hit test is valid
-                         // The event typically contains the hit matrix, but R3F XR component handles positioning its children.
-                         // We just need to capture the current position. 
-                         // However, XRHitTest children are *inside* the hit group.
-                         // So we just set setIsPlaced(true) and maybe capture world position?
-                         // Actually, simplify: Just setIsPlaced(true).
-                         // We need to know WHERE. 
-                         // The e.target is the hit test source? 
-                         // In R3F XR v6, to place efficiently, we often use the matrices.
-                         // But for simplicity in this codebase, let's assume grabbing E.point (world position) works if available.
-                         // If not, we might need a different approach.
-                         // Let's rely on `placedPosition` update logic if we had one, 
-                         // OR: We use the fact that <XRHitTest> moves its children.
-                         // So if we tap, we want to STOP using XRHitTest and START rendering normally at that location.
-                         // PROBLEM: 'e.point' might not be available on SelectEvent directly in all implementations.
-                         // WORKAROUND: We can use a ref in the Ghost logic to capture its world position on every frame?
-                         // Better: e.point IS usually available in hit-test results.
                          if (e.point) {
                             setPlacedPosition(e.point);
                             setIsPlaced(true);
                          }
                     }}
                 >
-                    {/* Ghost Model Preview */}
-                     <Suspense fallback={null}>
-                        <InteractiveModel 
-                            url={activeModel.url} 
-                            initialScale={activeModel.scale} 
-                            position={[0, 0, 0]} // Relative to hit test
-                            rotation={[0, 0, 0]}
-                            scaleFactor={1}
-                            onSelect={() => {}} // No select on ghost
-                            isGhost={true}
-                        />
-                    </Suspense>
+                    {/* Performance Optimization: Lightweight Ghost (Wireframe Sphere) */}
+                    {/* Replaces heavy full model clone to prevent mobile lag */}
+                    <mesh position={[0, 0.1, 0]} rotation-x={-Math.PI / 2}>
+                        <sphereGeometry args={[0.1, 16, 16]} />
+                        <meshBasicMaterial color="#00ffff" wireframe transparent opacity={0.6} />
+                    </mesh>
+
+                    {/* Ground Marker */}
                     <mesh rotation-x={-Math.PI / 2}>
-                        <circleGeometry args={[0.05, 32]} />
-                        <meshBasicMaterial color="white" opacity={0.5} transparent />
+                        <ringGeometry args={[0.08, 0.1, 32]} />
+                        <meshBasicMaterial color="white" opacity={0.8} transparent />
+                    </mesh>
+                    <mesh rotation-x={-Math.PI / 2}>
+                         <circleGeometry args={[0.02, 32]} />
+                         <meshBasicMaterial color="cyan" />
                     </mesh>
                 </XRHitTest>
             )}
@@ -219,7 +190,7 @@ const ARScene = ({ activeModel, isPlaced, setIsPlaced, placedPosition, setPlaced
     );
 };
 
-// --- Info Panel Component ---
+// ... InfoPanel Component (Unchanged) ...
 const InfoPanel = ({ model, onClose }) => {
     if (!model) return null;
 
@@ -275,6 +246,7 @@ const InfoPanel = ({ model, onClose }) => {
     );
 };
 
+
 const ARSpaceLabView = () => {
   /* State */
   const [isARSupported, setIsARSupported] = useState(false);
@@ -304,7 +276,7 @@ const ARSpaceLabView = () => {
     }
   }, {
     drag: { from: () => [modelRotation[1] * 100, modelRotation[0] * 100] }, 
-    pinch: { scaleBounds: { min: 0.5, max: 3 }, rubberband: true },
+    pinch: { scaleBounds: { min: 0.2, max: 10 }, rubberband: true },
     enabled: gesturesEnabled 
   });
 
@@ -429,8 +401,8 @@ const ARSpaceLabView = () => {
           </div>
       )}
 
-      {/* Force low DPR for performance on mobile AR */}
-      <Canvas dpr={1}>
+      {/* Force low DPR and disable Antialiasing for performance on mobile AR */}
+      <Canvas dpr={1} gl={{ antialias: false, precision: 'mediump' }}>
         <XR store={store}>
             <ARScene 
                 activeModel={activeModel} 
