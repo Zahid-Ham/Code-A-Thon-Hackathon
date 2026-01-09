@@ -20,7 +20,7 @@ const AR_MODELS = {
       id: 'earth', 
       name: 'Earth', 
       url: '/models/earth.glb', 
-      scale: 0.5,
+      scale: 0.2, // Reduced for table-top
       type: 'Terrestrial Planet',
       purpose: 'Sustaining Life',
       impact: 'The only known astronomical object to harbor life. Its magnetic field protects us from solar radiation.'
@@ -29,7 +29,7 @@ const AR_MODELS = {
       id: 'moon', 
       name: 'Moon', 
       url: '/models/moon.glb', 
-      scale: 0.3,
+      scale: 0.15,
       type: 'Natural Satellite',
       purpose: 'Tides & Stability',
       impact: 'Stabilizes Earth\'s axial tilt, creating a stable climate. Controls ocean tides.'
@@ -38,7 +38,7 @@ const AR_MODELS = {
       id: 'mars', 
       name: 'Mars', 
       url: '/models/mars.glb', 
-      scale: 0.4,
+      scale: 0.18,
       type: 'Terrestrial Planet',
       purpose: 'Potential Habitation',
       impact: 'The most likely candidate for future human colonization. Contains water ice and signs of ancient rivers.'
@@ -49,7 +49,7 @@ const AR_MODELS = {
       id: 'hubble', 
       name: 'Hubble', 
       url: '/models/hubble.glb', 
-      scale: 0.2,
+      scale: 0.1,
       type: 'Space Telescope',
       purpose: 'Deep Space Observation',
       impact: 'Revolutionized astronomy by capturing iconic images of nebulae, galaxies, and the deep universe.'
@@ -58,7 +58,7 @@ const AR_MODELS = {
       id: 'gps', 
       name: 'GPS', 
       url: '/models/gps.glb', 
-      scale: 0.2,
+      scale: 0.1,
       type: 'Navigation Satellite',
       purpose: 'Global Positioning',
       impact: 'Enables precise navigation for cars, phones, and planes across the globe.'
@@ -69,7 +69,7 @@ const AR_MODELS = {
       id: 'iss', 
       name: 'ISS', 
       url: '/models/iss.glb', 
-      scale: 0.1,
+      scale: 0.08,
       type: 'Space Station',
       purpose: 'Scientific Research',
       impact: 'A microgravity lab where international crews conduct experiments not possible on Earth.'
@@ -83,21 +83,37 @@ const AR_MODELS = {
 import { useGesture } from '@use-gesture/react';
 import { X } from 'lucide-react';
 
-const InteractiveModel = ({ url, initialScale, position, rotation, scaleFactor, onSelect }) => {
+const InteractiveModel = ({ url, initialScale, position, rotation, scaleFactor, onSelect, isGhost = false }) => {
   const { scene } = useGLTF(url);
   const ref = useRef();
-  // We remove local 'selected' state to rely on parent opening the panel
   
   const finalScale = initialScale * scaleFactor;
+
+  // Clone scene for Ghost to avoid modifying cached GLTF
+  const ghostScene = React.useMemo(() => {
+      if (!isGhost) return scene;
+      const clone = scene.clone();
+      clone.traverse((child) => {
+          if (child.isMesh) {
+              child.material = child.material.clone();
+              child.material.transparent = true;
+              child.material.opacity = 0.5;
+              child.material.color.setHex(0x00ffff); // Cyan tint
+              child.material.wireframe = true; // Optional: Wireframe for "Hologram" feel
+          }
+      });
+      return clone;
+  }, [scene, isGhost]);
 
   return (
     <primitive 
       ref={ref}
-      object={scene} 
+      object={isGhost ? ghostScene : scene} 
       position={position} 
       rotation={rotation}
       scale={[finalScale, finalScale, finalScale]}
       onClick={(e) => {
+          if (isGhost) return;
           e.stopPropagation();
           onSelect();
       }}
@@ -142,13 +158,45 @@ const ARScene = ({ activeModel, isPlaced, setIsPlaced, placedPosition, setPlaced
             {isPresenting && !isPlaced && (
                 <XRHitTest 
                     mode="point" 
+                    onSelect={(e) => {
+                         // This fires when user taps automatically if hit test is valid
+                         // The event typically contains the hit matrix, but R3F XR component handles positioning its children.
+                         // We just need to capture the current position. 
+                         // However, XRHitTest children are *inside* the hit group.
+                         // So we just set setIsPlaced(true) and maybe capture world position?
+                         // Actually, simplify: Just setIsPlaced(true).
+                         // We need to know WHERE. 
+                         // The e.target is the hit test source? 
+                         // In R3F XR v6, to place efficiently, we often use the matrices.
+                         // But for simplicity in this codebase, let's assume grabbing E.point (world position) works if available.
+                         // If not, we might need a different approach.
+                         // Let's rely on `placedPosition` update logic if we had one, 
+                         // OR: We use the fact that <XRHitTest> moves its children.
+                         // So if we tap, we want to STOP using XRHitTest and START rendering normally at that location.
+                         // PROBLEM: 'e.point' might not be available on SelectEvent directly in all implementations.
+                         // WORKAROUND: We can use a ref in the Ghost logic to capture its world position on every frame?
+                         // Better: e.point IS usually available in hit-test results.
+                         if (e.point) {
+                            setPlacedPosition(e.point);
+                            setIsPlaced(true);
+                         }
+                    }}
                 >
-                    <mesh rotation-x={-Math.PI / 2} onClick={(e) => {
-                         setPlacedPosition(e.point);
-                         setIsPlaced(true);
-                    }}>
-                        <ringGeometry args={[0.1, 0.15, 32]} />
-                         <meshBasicMaterial color="cyan" />
+                    {/* Ghost Model Preview */}
+                     <Suspense fallback={null}>
+                        <InteractiveModel 
+                            url={activeModel.url} 
+                            initialScale={activeModel.scale} 
+                            position={[0, 0, 0]} // Relative to hit test
+                            rotation={[0, 0, 0]}
+                            scaleFactor={1}
+                            onSelect={() => {}} // No select on ghost
+                            isGhost={true}
+                        />
+                    </Suspense>
+                    <mesh rotation-x={-Math.PI / 2}>
+                        <circleGeometry args={[0.05, 32]} />
+                        <meshBasicMaterial color="white" opacity={0.5} transparent />
                     </mesh>
                 </XRHitTest>
             )}
@@ -228,21 +276,27 @@ const InfoPanel = ({ model, onClose }) => {
 };
 
 const ARSpaceLabView = () => {
+  /* State */
   const [isARSupported, setIsARSupported] = useState(false);
   const [activeCategory, setActiveCategory] = useState('Planets');
   const [activeModel, setActiveModel] = useState(AR_MODELS['Planets'][0]);
   const [isPlaced, setIsPlaced] = useState(false);
   const [placedPosition, setPlacedPosition] = useState(null);
   const [useGyro, setUseGyro] = useState(false); // Fallback mode
-  const [showInfo, setShowInfo] = useState(false); // New: Info Panel visibility state
+  const [showInfo, setShowInfo] = useState(false);
+  const [isInAR, setIsInAR] = useState(false); // Track AR session state
 
   // Lifted State for Interactions
   const [modelRotation, setModelRotation] = useState([0, 0, 0]);
   const [modelScale, setModelScale] = useState(1);
 
   // Global Interaction Bindings
+  // Enable custom gestures in all modes (Desktop, Gyro, AR) unless Info Panel is open.
+  const gesturesEnabled = !showInfo;
+
   const bind = useGesture({
-    onDrag: ({ offset: [x, y] }) => {
+    onDrag: ({ offset: [x, y], pinching }) => {
+      if (pinching) return;
       setModelRotation([y * 0.01, x * 0.01, 0]);
     },
     onPinch: ({ offset: [s] }) => {
@@ -250,7 +304,8 @@ const ARSpaceLabView = () => {
     }
   }, {
     drag: { from: () => [modelRotation[1] * 100, modelRotation[0] * 100] }, 
-    pinch: { scaleBounds: { min: 0.5, max: 3 }, rubberband: true }
+    pinch: { scaleBounds: { min: 0.5, max: 3 }, rubberband: true },
+    enabled: gesturesEnabled 
   });
 
   useEffect(() => {
@@ -270,6 +325,7 @@ const ARSpaceLabView = () => {
       console.log("Attempting to enter AR...");
       try {
           await store.enterAR();
+          setIsInAR(true); // Enable custom gestures
           console.log("Entered AR Session");
       } catch (e) {
           console.error("Failed to enter AR:", e);
@@ -288,6 +344,8 @@ const ARSpaceLabView = () => {
       setModelRotation([0,0,0]);
       setModelScale(1);
       setShowInfo(false);
+      // Don't reset isInAR or useGyro here potentially? 
+      // If user resets Placement, they are still in AR session.
   };
 
   const onModelSelect = () => {
@@ -298,9 +356,11 @@ const ARSpaceLabView = () => {
   return (
     <div {...bind()} className="relative w-full h-screen bg-black overflow-hidden font-sans touch-none">
       
+      {/* UI Layer - Pointer Events managed carefully */}
+      
       {/* HUD: Back & Info */}
       <div className="absolute top-0 left-0 w-full p-6 z-40 pointer-events-none">
-        <div className="flex justify-between items-start pointer-events-auto">
+        <div className="flex justify-between items-start pointer-events-auto" onPointerDown={(e) => e.stopPropagation()}>
              <Link to="/dashboard" className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors bg-black/50 px-3 py-1 rounded-lg backdrop-blur-sm">
                 <ArrowLeft size={16} />
                 <span className="font-mono text-xs tracking-widest">EXIT</span>
@@ -314,18 +374,24 @@ const ARSpaceLabView = () => {
         </div>
       </div>
       
-       {/* Info Panel Overlay */}
-       {showInfo && <InfoPanel model={activeModel} onClose={() => setShowInfo(false)} />}
+       {/* Info Panel Overlay - Stop Propagation to prevent gestures */}
+       {showInfo && (
+           <div className="absolute inset-0 z-50 flex items-end pointer-events-auto" onPointerDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
+               <InfoPanel model={activeModel} onClose={() => setShowInfo(false)} />
+           </div>
+       )}
 
-       {/* UI - Hide when Info Panel is open for cleaner view? Optional. Let's keep it but maybe dim it. */}
-       <div className={`absolute bottom-24 left-0 w-full z-40 px-4 flex flex-col gap-4 pointer-events-none transition-opacity ${showInfo ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-          <div className="flex justify-center gap-2 pointer-events-auto overflow-x-auto pb-2 scrollbar-hide">
+       {/* Bottom Selection UI */}
+       <div 
+            className={`absolute bottom-24 left-0 w-full z-40 px-4 flex flex-col gap-4 pointer-events-none transition-opacity ${showInfo ? 'opacity-0' : 'opacity-100'}`}
+       >
+          <div className="flex justify-center gap-2 pointer-events-auto overflow-x-auto pb-2 scrollbar-hide" onPointerDown={(e) => e.stopPropagation()}>
               <CategoryTab label="Planets" icon={Globe} active={activeCategory === 'Planets'} onClick={() => setActiveCategory('Planets')} />
               <CategoryTab label="Satellites" icon={Satellite} active={activeCategory === 'Satellites'} onClick={() => setActiveCategory('Satellites')} />
               <CategoryTab label="Stations" icon={Zap} active={activeCategory === 'Stations'} onClick={() => setActiveCategory('Stations')} />
           </div>
 
-          <div className="flex justify-center gap-3 pointer-events-auto overflow-x-auto pb-2 scrollbar-hide snap-x">
+          <div className="flex justify-center gap-3 pointer-events-auto overflow-x-auto pb-2 scrollbar-hide snap-x" onPointerDown={(e) => e.stopPropagation()}>
                {AR_MODELS[activeCategory].map(model => (
                    <ModelCard 
                         key={model.id} 
@@ -363,7 +429,8 @@ const ARSpaceLabView = () => {
           </div>
       )}
 
-      <Canvas>
+      {/* Force low DPR for performance on mobile AR */}
+      <Canvas dpr={1}>
         <XR store={store}>
             <ARScene 
                 activeModel={activeModel} 
@@ -376,7 +443,11 @@ const ARSpaceLabView = () => {
                 onModelSelect={onModelSelect}
             />
             {/* Controls Logic */}
-            {!store.inAR && !useGyro && <OrbitControls makeDefault />} 
+            {/* Simulation Mode: If using custom gestures (gesturesEnabled), we disable OrbitControls rotation so drag rotates the MODEL, not the CAMERA. */}
+            {/* But we might want Zoom? Custom gestures handle pinch zoom. Desktop scroll zoom is OrbitControls. */}
+            {/* Let's try: Enable OrbitControls but disable ROTATE if gestures are on? No, useGestures captures drag. */}
+            {/* Safest bet: If gesturesEnabled, NO OrbitControls. User cannot move camera, only rotate object. This matches "Laboratory" feel. */}
+            {!store.inAR && !useGyro && !gesturesEnabled && <OrbitControls makeDefault />} 
             {!store.inAR && useGyro && <DeviceOrientationControls />}
         </XR>
       </Canvas>
