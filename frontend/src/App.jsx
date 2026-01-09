@@ -9,12 +9,11 @@ import TransitionLayout from './components/TransitionLayout';
 import { SoundProvider } from './contexts/SoundContext';
 import { CosmicWeatherProvider } from './contexts/CosmicWeatherContext';
 import {
-  ChronoArchivePlaceholder,
-  AcademyPlaceholder,
   TerraVisionPlaceholder
 } from './components/PlaceholderPages';
-import MissionTimelineView from './views/MissionTimelineView';
 import AcademyView from './views/AcademyView';
+import MissionTimelineView from './views/MissionTimelineView';
+
 
 function App() {
   return (

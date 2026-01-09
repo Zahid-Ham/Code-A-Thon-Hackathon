@@ -6,6 +6,7 @@ const path = require('path');
 const CosmicWeatherService = require('./services/CosmicWeatherService');
 const OrbitalAtlasService = require('./services/OrbitalAtlasService');
 const DataLabService = require('./services/DataLabService');
+const AcademyIntelService = require('./services/AcademyIntelService');
 require('dotenv').config(); // Load environment variables
 
 const app = express();
@@ -15,6 +16,8 @@ const NASA_API_KEY = process.env.NASA_API_KEY || 'DEMO_KEY';
 // Initialize Services
 const cosmicService = new CosmicWeatherService(NASA_API_KEY);
 const orbitalService = new OrbitalAtlasService();
+const dataLabService = new DataLabService();
+const academyService = new AcademyIntelService();
 
 // Enable CORS for frontend communication
 app.use(cors());
@@ -228,6 +231,54 @@ app.get('/api/orbital-atlas/satellite/:id', async (req, res) => {
   }
 });
 
+// --- ACADEMY INTELLIGENCE API ---
+app.get('/api/academy/infographics', async (req, res) => {
+  try {
+    const data = await academyService.getDynamicInfographics();
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch academy infographics' });
+  }
+});
+
+app.get('/api/academy/briefings', async (req, res) => {
+  try {
+    const data = await academyService.getDynamicBriefings();
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch academy briefings' });
+  }
+});
+
+app.get('/api/academy/quizzes/:category', async (req, res) => {
+  try {
+    const data = await academyService.getDynamicQuizzes(req.params.category);
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch dynamic quizzes' });
+  }
+});
+
+// --- DATA LAB GROUND TRUTH API ---
+app.get('/api/data-lab/telemetry', async (req, res) => {
+  try {
+    const telemetry = await dataLabService.getLiveTelemetry();
+    res.json(telemetry);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch Data Lab telemetry' });
+  }
+});
+
+app.post('/api/data-lab/report', async (req, res) => {
+  try {
+    const { countryName, countryCode, layer, countryData } = req.body;
+    const report = await dataLabService.generateTechnicalReport(countryName, countryCode, layer, countryData);
+    res.json(report);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to generate technical report' });
+  }
+});
+
 // --- CELESTIAL EVENTS HYBRID API ---
 
 // Caches
@@ -318,7 +369,7 @@ app.get('/api/celestial-events', async (req, res) => {
           lat: geom.coordinates[1], // GeoJSON is [lng, lat]
           lng: geom.coordinates[0],
           date: 'LIVE ALERT',
-          description: `Active natural event detected by NASA Earth Observatory.Category: ${evt.categories[0].title}.`,
+          description: `Active natural event detected by NASA Earth Observatory. Category: ${evt.categories[0].title}.`,
           visibility_score: 40 // Hazards usually mean bad visibility (smoke/ash)
         };
       });
@@ -367,7 +418,7 @@ app.post('/api/star-chart', async (req, res) => {
     return res.status(500).json({ error: 'Missing Server-Side API Keys for Star Chart' });
   }
 
-  const authString = Buffer.from(`${appId}:${appSecret} `).toString('base64');
+  const authString = Buffer.from(`${appId}:${appSecret}`).toString('base64');
 
   try {
     const response = await axios.post('https://api.astronomyapi.com/api/v2/studio/star-chart', {
