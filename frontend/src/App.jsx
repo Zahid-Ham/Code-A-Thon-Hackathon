@@ -15,6 +15,7 @@ import {
 } from './components/PlaceholderPages';
 import MissionTimelineView from './views/MissionTimelineView';
 import AcademyView from './views/AcademyView';
+import ARSpaceLabView from './views/ARSpaceLabView';
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
               <Route path="/timeline" element={<MissionTimelineView />} />
               <Route path="/academy" element={<AcademyView />} />
               <Route path="/terra" element={<TerraVisionPlaceholder />} />
+              <Route path="/ar-lab" element={<ARSpaceLabView />} />
             </Route>
           </Routes>
         </SoundProvider>

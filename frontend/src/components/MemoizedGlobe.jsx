@@ -9,7 +9,8 @@ const MemoizedGlobe = ({
     hazardEvents, 
     userLocation, 
     arcsData, 
-    onEventClick 
+    onEventClick,
+    visibilityMap
 }) => {
     const { weatherData, globalSeverity } = useCosmicWeather();
 
@@ -107,23 +108,40 @@ const MemoizedGlobe = ({
     // Combine hazard events with localized rings
     const allRings = useMemo(() => [...hazardEvents, ...auroraRings, ...radiationRings], [hazardEvents, auroraRings, radiationRings]);
 
+    // Memoize the polygons data to include both countries and visibility zones
+    const combinedPolygons = useMemo(() => {
+        let base = polygons.map(p => ({ ...p, properties: { ...p.properties, type: 'country' } })); // distinct style
+        if (visibilityMap) {
+            // Add visibility zones on top
+            return [...base, ...visibilityMap];
+        }
+        return base;
+    }, [polygons, visibilityMap]);
 
     return (
         <Globe
             ref={globeRef}
             backgroundColor="rgba(0,0,0,0)"
-            globeImageUrl="https://unpkg.com/three-globe/example/img/earth-night.jpg"
+            globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
+            bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+            backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
             
             // Dynamic Atmosphere
             atmosphereAltitude={config.atmosphereAltitude}
             atmosphereColor={config.atmosphereColor}
 
-            // Polygons
-            polygonsData={polygons}
-            polygonCapColor={() => 'rgba(255, 215, 0, 0.05)'}
-            polygonSideColor={() => 'rgba(255, 215, 0, 0.1)'}
-            polygonStrokeColor={() => '#FFD700'}
-            polygonAltitude={config.polygonAltitude}
+            // Polygons (Countries + Visibility)
+            polygonsData={combinedPolygons}
+            polygonSideColor={() => 'rgba(0, 0, 0, 0)'}
+            polygonStrokeColor={() => '#111'}
+            polygonCapColor={(d) => {
+                if (d.properties.type === 'horizon') return 'rgba(0, 240, 255, 0.1)';
+                if (d.properties.type === 'partial') return 'rgba(0, 240, 255, 0.2)';
+                if (d.properties.type === 'high') return 'rgba(255, 255, 255, 0.1)';
+                return 'rgba(200, 200, 200, 0.1)'; // Country default
+            }}
+            polygonAlt={(d) => d.properties.type ? 0.01 : 0.005} // Zones slightly higher
+            polygonsTransitionDuration={500}
 
             // Graticules
             showGraticules={true}

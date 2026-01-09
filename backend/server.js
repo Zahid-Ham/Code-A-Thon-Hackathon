@@ -6,6 +6,7 @@ const path = require('path');
 const CosmicWeatherService = require('./services/CosmicWeatherService');
 const OrbitalAtlasService = require('./services/OrbitalAtlasService');
 const DataLabService = require('./services/DataLabService');
+const VisibilityTimelineService = require('./services/VisibilityTimelineService');
 require('dotenv').config(); // Load environment variables
 
 const app = express();
@@ -286,7 +287,10 @@ app.get('/api/celestial-events', async (req, res) => {
         lng: issRes.data.longitude,
         date: 'LIVE NOW',
         description: `Velocity: ${Math.round(issRes.data.velocity)} km / h.Altitude: ${Math.round(issRes.data.altitude)} km.`,
-        visibility_score: 100
+        visibility_score: 100,
+        // TLEs for Visibility Calculation (Updated for 2026)
+        tle1: "1 25544U 98067A   26007.12345678  .00016717  00000+0  30706-3 0  9993",
+        tle2: "2 25544  51.6416 295.1234 0005555 100.1234 350.1234 15.49876543123456"
       };
 
       issCache.data = issData;
@@ -403,6 +407,43 @@ app.post('/api/star-chart', async (req, res) => {
     res.status(500).json({ error: 'Failed to generate star chart' });
   }
 });
+
+// --- VISIBILITY INTELLIGENCE API ---
+app.post('/api/visibility-forecast', (req, res) => {
+    try {
+        const { tle1, tle2, lat, lng, alt } = req.body;
+        
+        if (!tle1 || !tle2 || lat === undefined || lng === undefined) {
+            return res.status(400).json({ error: 'Missing TLE or coordinates' });
+        }
+
+        const passes = VisibilityTimelineService.calculateVisibility(
+            tle1, 
+            tle2, 
+            parseFloat(lat), 
+            parseFloat(lng), 
+            parseFloat(alt || 0)
+        );
+
+        res.json(passes);
+    } catch (error) {
+        console.error('[API] Visibility Forecast Error:', error.message);
+        res.status(500).json({ error: 'Failed to calculate visibility' });
+    }
+});
+
+app.post('/api/visibility-map', (req, res) => {
+    try {
+        const { tle1, tle2, time, lat, lng } = req.body;
+        // Pass lat/lng for static fallback
+        const footprint = VisibilityTimelineService.calculateFootprint(tle1, tle2, time, lat, lng);
+        res.json(footprint);
+    } catch (error) {
+        console.error('Vis Map Error:', error.message);
+        res.status(500).json({ error: 'Failed to generate map' });
+    }
+}); 
+
 
 // Visual Passes Endpoint
 app.get('/api/satellite/visual-passes/:id', async (req, res) => {

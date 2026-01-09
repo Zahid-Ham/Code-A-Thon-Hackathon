@@ -11,7 +11,8 @@ import {
   ArrowRight,
   Zap,
   Activity,
-  Layers
+  Layers,
+  Box
 } from 'lucide-react';
 import SpaceDust from './SpaceDust';
 import { useSound } from '../contexts/SoundContext';
@@ -35,7 +36,7 @@ const modules = [
     subtitle: 'Space Weather',
     description: 'Tracking solar flares, CMEs, and geomagnetic storms.',
     icon: Sun,
-    angle: 60,
+    angle: 51,
     color: '#FFD700',
     link: '/solar',
     status: 'ACTIVE'
@@ -46,7 +47,7 @@ const modules = [
     subtitle: 'Satellite Tracker',
     description: '3D visualization of global satellite network.',
     icon: Globe,
-    angle: 120,
+    angle: 103,
     color: '#00BFFF',
     link: '/orbital',
     status: 'ONLINE'
@@ -57,7 +58,7 @@ const modules = [
     subtitle: 'Mission Timeline',
     description: 'Visual timeline of past, ongoing, and future space missions.',
     icon: Clock,
-    angle: 180,
+    angle: 154,
     color: '#FF0055',
     link: '/timeline',
     status: 'LIVE DATA'
@@ -68,7 +69,7 @@ const modules = [
     subtitle: 'Knowledge Base',
     description: 'Interactive quizzes and cosmic Encyclopedia.',
     icon: GraduationCap,
-    angle: 240,
+    angle: 206,
     color: '#00FF99',
     link: '/academy',
     status: 'OPEN'
@@ -79,10 +80,21 @@ const modules = [
     subtitle: 'Planet Health',
     description: 'Satellite imagery analysis of crop & climate health.',
     icon: Satellite,
-    angle: 300,
+    angle: 257,
     color: '#AA00FF',
     link: '/terra',
     status: 'READY'
+  },
+  {
+    id: 'ar-lab',
+    title: 'AR Space Lab',
+    subtitle: 'Immersive Mode',
+    description: 'Visualize planets in your room using WebXR Augmented Reality.',
+    icon: Box,
+    angle: 309,
+    color: '#FF4400',
+    link: '/ar-lab',
+    status: 'BETA'
   }
 ];
 

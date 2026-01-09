@@ -6,7 +6,9 @@ import SkyVisibilitySlider from './components/SkyVisibilitySlider';
 import MissionTimeline from './components/MissionTimeline';
 import MemoizedGlobe from './components/MemoizedGlobe';
 import RocketOverlay from './components/RocketOverlay';
+
 import ISSTracker from './components/ISSTracker';
+import IntelligenceOverlay from './components/IntelligenceOverlay';
 
 const EventDashboard = () => {
     const globeEl = useRef();
@@ -18,6 +20,9 @@ const EventDashboard = () => {
 
     const [weatherData, setWeatherData] = useState(null); // Weather State
     const [isFlying, setIsFlying] = useState(false);      // Warp Animation State
+    const [isTracking, setIsTracking] = useState(false);  // Tracking Mode State
+    const [visibilityMap, setVisibilityMap] = useState(null); // GeoJSON Footprints
+    const [previewTime, setPreviewTime] = useState(null); // Time override from Timeline
 
     // --- Cinematic Tour State ---
     const [isTourActive, setIsTourActive] = useState(false);
@@ -244,24 +249,104 @@ const EventDashboard = () => {
         }
     };
 
+    const handleTrackClick = () => {
+        if (!selectedEvent) return;
+        setIsTracking(true);
+        if (globeEl.current) {
+            globeEl.current.controls().autoRotate = false;
+            // Slight zoom in for detailed view
+            const currentAlt = globeEl.current.pointOfView().altitude;
+            globeEl.current.pointOfView({ 
+                lat: selectedEvent.lat, 
+                lng: selectedEvent.lng, 
+                altitude: Math.max(0.5, currentAlt * 0.8) 
+            }, 1000);
+        }
+    };
+
+    const handleStopTracking = () => {
+        setIsTracking(false);
+        setPreviewTime(null);
+        // Do not auto-resume rotation immediately to allow user to look around, 
+        // or resume if that's the desired "return to normal" behavior.
+        // Let's resume for a "return to bridge" feel.
+        if (globeEl.current) {
+            globeEl.current.controls().autoRotate = true;
+        }
+    };
+
     const closePanel = () => {
         window.speechSynthesis.cancel();
         setSelectedEvent(null);
+        setIsTracking(false); // Valid to stop tracking if panel closes
+        setPreviewTime(null);
         setIsTourActive(false); // Stop tour if user manually closes
         if (globeEl.current) globeEl.current.controls().autoRotate = true;
     };
 
-    // Auto-Fetch Local Weather when User Location is found
     useEffect(() => {
         if (userLocation) {
             fetchWeather(userLocation.lat, userLocation.lng);
         }
     }, [userLocation]);
 
+    // Track Visibility Map Update
+    useEffect(() => {
+        let interval;
+        if (isTracking && selectedEvent) { // Allow ALL events to request map
+             const updateMap = async () => {
+                 // Hack: If we don't have TLE, we can't calculate.
+                 // For hackathon, assume 'selectedEvent' might have TLE props OR we default to ISS TLEs for demo if missing
+                 const DEMO_TLE1 = "1 25544U 98067A   23337.56789123  .00012345  00000-0  12345-3 0  9999";
+                 const DEMO_TLE2 = "2 25544  51.6431 123.4567 0001234 123.4567 236.5432 15.50000000456789";
+                 
+                 try {
+                     const res = await fetch('http://localhost:5000/api/visibility-map', {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify({
+                             tle1: selectedEvent.tle1, // Can be undefined
+                             tle2: selectedEvent.tle2,
+                             lat: selectedEvent.lat, // Pass coordinates for static events
+                             lng: selectedEvent.lng,
+                             time: previewTime ? previewTime : new Date().toISOString()
+                         })
+                     });
+                     if (res.ok) {
+                         const data = await res.json();
+                         setVisibilityMap(data.features); // Globe expects array of features or polygons
+                     }
+                 } catch (e) { console.error("VisMap error", e); }
+             };
+             
+             updateMap();
+             // Only interval if NO preview set (live tracking)
+             // AND only if it's a satellite (static events don't move fast)
+             if (!previewTime && selectedEvent.type === 'SATELLITE') {
+                interval = setInterval(updateMap, 5000); 
+             }
+        } else {
+            setVisibilityMap(null);
+        }
+        return () => clearInterval(interval);
+    }, [isTracking, selectedEvent, previewTime]);
+
+
     return (
         <div className="relative min-h-screen text-white bg-[#050B14] font-sans overflow-hidden">
             <Starfield />
             <RocketOverlay isFlying={isFlying} />
+            
+            {/* Intelligence Layer Overlay */}
+            {isTracking && (
+                <IntelligenceOverlay 
+                    selectedEvent={selectedEvent} 
+                    userLocation={userLocation} 
+                    onClose={handleStopTracking}
+                    onTimeSelect={(time) => setPreviewTime(time)}
+                    visibilityMap={visibilityMap}
+                />
+            )}
 
             {/* Header / Top Navigation */}
             <header className="absolute top-0 left-0 w-full p-8 flex justify-between items-start z-50 pointer-events-none">
@@ -361,6 +446,7 @@ const EventDashboard = () => {
                     userLocation={userLocation}
                     arcsData={arcsData}
                     onEventClick={handleEventClick}
+                    visibilityMap={visibilityMap}
                 />
             </div>
 
@@ -460,9 +546,12 @@ const EventDashboard = () => {
                         <SkyVisibilitySlider eventData={selectedEvent} />
 
                         <div className="flex gap-2 mt-6">
-                            <button className="flex-1 py-4 bg-[#00F0FF]/10 border border-[#00F0FF]/30 text-[#00F0FF] font-bold tracking-widest hover:bg-[#00F0FF]/20 transition-all flex justify-center items-center gap-2 group">
-                                TRACK
-                                <Crosshair size={16} />
+                            <button 
+                                onClick={handleTrackClick}
+                                className={`flex-1 py-4 border font-bold tracking-widest transition-all flex justify-center items-center gap-2 group ${isTracking ? 'bg-[#00F0FF] text-black border-[#00F0FF]' : 'bg-[#00F0FF]/10 border-[#00F0FF]/30 text-[#00F0FF] hover:bg-[#00F0FF]/20'}`}
+                            >
+                                {isTracking ? 'TRACKING ACTIVE' : 'TRACK'}
+                                <Crosshair size={16} className={isTracking ? 'animate-spin' : ''} />
                             </button>
                             <a
                                 href={`https://www.google.com/search?q=${encodeURIComponent(selectedEvent.title + ' space event details')}`}
