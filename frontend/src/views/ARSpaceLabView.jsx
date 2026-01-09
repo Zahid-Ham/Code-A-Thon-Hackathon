@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { XR, createXRStore, useHitTest } from '@react-three/xr';
+import { XR, createXRStore, XRHitTest } from '@react-three/xr';
 import { OrbitControls, Text, useGLTF, DeviceOrientationControls } from '@react-three/drei';
 import { useGesture } from '@use-gesture/react';
 import { Box, Scan, ArrowLeft, Globe, Satellite, Zap, RefreshCw, X } from 'lucide-react';
@@ -41,7 +41,7 @@ const AR_MODELS = {
       scale: 0.18,
       type: 'Terrestrial Planet',
       purpose: 'Potential Habitation',
-      impact: 'The most likely candidate for future human colonization. Contains water ice and signs of ancient rivers.'
+      impact: 'The most likely candidate for future human colonization. Contains water ice and signs of ancient rivers.',
     }
   ],
   Satellites: [
@@ -107,18 +107,18 @@ const InteractiveModel = ({ url, initialScale, position, rotation, scaleFactor, 
   );
 };
 
-// Reticle Component for Surface Detection
-const Reticle = ({ setHitPoint }) => {
+// Reticle Component: Lives INSIDE XRHitTest component to visualize position
+// and reports world position to parent for "Tap Anywhere" logic via Ref.
+const ReticleContent = ({ setHitPoint }) => {
     const ref = useRef();
     
-    useHitTest((hitMatrix, hit) => {
-        // Update the position of the reticle mesh
+    // Continuously update the shared ref with current reticle position
+    useFrame(() => {
         if (ref.current) {
-            hitMatrix.decompose(ref.current.position, ref.current.quaternion, ref.current.scale);
-            
-            // Critical Fix: Update the shared ref for placement
-            // We clone the position to avoid reference issues
-            setHitPoint(ref.current.position.clone());
+            const vec = new THREE.Vector3();
+            ref.current.getWorldPosition(vec);
+            // Update the global ref so the click handler knows where to place
+            setHitPoint(vec);
         }
     });
 
@@ -176,7 +176,12 @@ const ARScene = ({ activeModel, isPlaced, setIsPlaced, placedPosition, setPlaced
 
             {/* AR Mode */}
             {isPresenting && !isPlaced && (
-                <Reticle setHitPoint={setHitPoint} />
+                <XRHitTest mode="point" onSelect={() => {
+                    // Fallback: If XRHitTest onSelect WORKS, we can use it too.
+                    // But our global handler should take precedence or work in tandem.
+                }}>
+                    <ReticleContent setHitPoint={setHitPoint} />
+                </XRHitTest>
             )}
 
             {isPresenting && isPlaced && placedPosition && (
