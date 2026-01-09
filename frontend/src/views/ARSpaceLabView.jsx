@@ -167,6 +167,7 @@ const LoadingHologram = ({ position, scale = 1 }) => {
 // and reports world position to parent for "Tap Anywhere" logic via Ref.
 const ReticleContent = ({ setHitPoint }) => {
     const ref = useRef();
+    const frameCount = useRef(0);
     
     // Continuously update the shared ref with current reticle position
     useFrame(() => {
@@ -175,6 +176,12 @@ const ReticleContent = ({ setHitPoint }) => {
             ref.current.getWorldPosition(vec);
             // Update the global ref so the click handler knows where to place
             setHitPoint(vec);
+
+            // LOGGING (Throttled): Check if Reticle is actually tracking
+            frameCount.current += 1;
+            if (frameCount.current % 60 === 0) {
+                 console.log("[AR-DEBUG] Reticle Tracking Configured. Current Pos:", vec.toArray());
+            }
         }
     });
 
@@ -202,12 +209,20 @@ const ReticleContent = ({ setHitPoint }) => {
 // Error Boundary
 class ErrorBoundary extends React.Component {
     constructor(props) { super(props); this.state = { hasError: false }; }
-    static getDerivedStateFromError(error) { return { hasError: true }; }
+    static getDerivedStateFromError(error) { 
+        console.error("[AR-DEBUG] ErrorBoundary Caught Error:", error);
+        return { hasError: true }; 
+    }
     render() { if (this.state.hasError) return this.props.fallback || null; return this.props.children; }
 }
 
 const ARScene = ({ activeModel, isPlaced, setIsPlaced, placedPosition, setPlacedPosition, modelRotation, modelScale, onModelSelect, setHitPoint }) => {
     const isPresenting = useThree((state) => state.gl.xr.isPresenting);
+    
+    // Log Rendering State
+    useEffect(() => {
+        console.log(`[AR-DEBUG] ARScene Rendered. isPresenting: ${isPresenting}, isPlaced: ${isPlaced}, hasPlacedPosition: ${!!placedPosition}`);
+    });
 
     return (
         <>
@@ -233,7 +248,7 @@ const ARScene = ({ activeModel, isPlaced, setIsPlaced, placedPosition, setPlaced
             {/* AR Mode */}
             {isPresenting && !isPlaced && (
                 <XRHitTest mode="point" onSelect={() => {
-                   // Global handler preferred
+                   console.log("[AR-DEBUG] XRHitTest Native onSelect Triggered (Fallback)");
                 }}>
                     <ReticleContent setHitPoint={setHitPoint} />
                 </XRHitTest>
@@ -326,6 +341,11 @@ const ARSpaceLabView = () => {
   const [showInfo, setShowInfo] = useState(false);
   const [isInAR, setIsInAR] = useState(false); // Track AR session state
 
+  // Debug: Monitor isPlaced changes
+  useEffect(() => {
+      console.log(`[AR-DEBUG] State Update: isPlaced=${isPlaced}, position=${placedPosition ? placedPosition.toArray() : 'null'}`);
+  }, [isPlaced, placedPosition]);
+
   // Hit Point Ref for Reticle communication
   const hitPointRef = useRef(null);
   const setHitPoint = (point) => {
@@ -349,6 +369,13 @@ const ARSpaceLabView = () => {
     },
     // Handle Tap for Placement - GLOBAL LISTENER on the container
     onClick: ({ event }) => {
+        console.log("[AR-DEBUG] Click/Tap Detected on Container", event);
+        
+        // Debug Failure Conditions
+        if (!isInAR) console.warn("[AR-DEBUG] Placement Failed: Not in AR Mode");
+        if (isPlaced) console.warn("[AR-DEBUG] Placement Failed: Already Placed");
+        if (!hitPointRef.current) console.warn("[AR-DEBUG] Placement Failed: No Hit Point (Reticle not tracking?)");
+
         // If in AR, not placed, and we have a valid hit point -> PLACE IT.
         if (isInAR && !isPlaced && hitPointRef.current) {
             console.log("Tap Detected via useGesture! Placing Model at:", hitPointRef.current);
