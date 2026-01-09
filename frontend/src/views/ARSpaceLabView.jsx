@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { XR, createXRStore, XRHitTest } from '@react-three/xr'; // Use Component
+import { XR, createXRStore, useHitTest } from '@react-three/xr';
 import { OrbitControls, Text, useGLTF, DeviceOrientationControls } from '@react-three/drei';
-import { useDrag } from '@use-gesture/react';
-import { Box, Scan, ArrowLeft, Globe, Satellite, Zap, RefreshCw } from 'lucide-react';
+import { useGesture } from '@use-gesture/react';
+import { Box, Scan, ArrowLeft, Globe, Satellite, Zap, RefreshCw, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import * as THREE from 'three';
 
@@ -84,10 +84,6 @@ Object.values(AR_MODELS).forEach(category => {
 
 // --- Components ---
 
-// Update imports to include useGesture
-import { useGesture } from '@use-gesture/react';
-import { X } from 'lucide-react';
-
 const InteractiveModel = ({ url, initialScale, position, rotation, scaleFactor, onSelect }) => {
   const { scene } = useGLTF(url);
   const ref = useRef();
@@ -111,6 +107,42 @@ const InteractiveModel = ({ url, initialScale, position, rotation, scaleFactor, 
   );
 };
 
+// Reticle Component for Surface Detection
+const Reticle = ({ setHitPoint }) => {
+    const ref = useRef();
+    
+    useHitTest((hitMatrix, hit) => {
+        // Update the position of the reticle mesh
+        if (ref.current) {
+            hitMatrix.decompose(ref.current.position, ref.current.quaternion, ref.current.scale);
+            
+            // Critical Fix: Update the shared ref for placement
+            // We clone the position to avoid reference issues
+            setHitPoint(ref.current.position.clone());
+        }
+    });
+
+    return (
+        <group ref={ref}>
+             {/* Performance Optimization: Lightweight Ghost (Wireframe Sphere) */}
+            <mesh position={[0, 0.1, 0]} rotation-x={-Math.PI / 2}>
+                <sphereGeometry args={[0.1, 16, 16]} />
+                <meshBasicMaterial color="#00ffff" wireframe transparent opacity={0.6} />
+            </mesh>
+             {/* Ground Marker */}
+             <mesh rotation-x={-Math.PI / 2}>
+                <ringGeometry args={[0.08, 0.1, 32]} />
+                <meshBasicMaterial color="white" opacity={0.8} transparent />
+            </mesh>
+            <mesh rotation-x={-Math.PI / 2}>
+                    <circleGeometry args={[0.02, 32]} />
+                    <meshBasicMaterial color="cyan" />
+            </mesh>
+        </group>
+    );
+};
+
+
 // Error Boundary
 class ErrorBoundary extends React.Component {
     constructor(props) { super(props); this.state = { hasError: false }; }
@@ -118,7 +150,7 @@ class ErrorBoundary extends React.Component {
     render() { if (this.state.hasError) return this.props.fallback || null; return this.props.children; }
 }
 
-const ARScene = ({ activeModel, isPlaced, setIsPlaced, placedPosition, setPlacedPosition, modelRotation, modelScale, onModelSelect }) => {
+const ARScene = ({ activeModel, isPlaced, setIsPlaced, placedPosition, setPlacedPosition, modelRotation, modelScale, onModelSelect, setHitPoint }) => {
     const isPresenting = useThree((state) => state.gl.xr.isPresenting);
 
     return (
@@ -144,32 +176,7 @@ const ARScene = ({ activeModel, isPlaced, setIsPlaced, placedPosition, setPlaced
 
             {/* AR Mode */}
             {isPresenting && !isPlaced && (
-                <XRHitTest 
-                    mode="point" 
-                    onSelect={(e) => {
-                         if (e.point) {
-                            setPlacedPosition(e.point);
-                            setIsPlaced(true);
-                         }
-                    }}
-                >
-                    {/* Performance Optimization: Lightweight Ghost (Wireframe Sphere) */}
-                    {/* Replaces heavy full model clone to prevent mobile lag */}
-                    <mesh position={[0, 0.1, 0]} rotation-x={-Math.PI / 2}>
-                        <sphereGeometry args={[0.1, 16, 16]} />
-                        <meshBasicMaterial color="#00ffff" wireframe transparent opacity={0.6} />
-                    </mesh>
-
-                    {/* Ground Marker */}
-                    <mesh rotation-x={-Math.PI / 2}>
-                        <ringGeometry args={[0.08, 0.1, 32]} />
-                        <meshBasicMaterial color="white" opacity={0.8} transparent />
-                    </mesh>
-                    <mesh rotation-x={-Math.PI / 2}>
-                         <circleGeometry args={[0.02, 32]} />
-                         <meshBasicMaterial color="cyan" />
-                    </mesh>
-                </XRHitTest>
+                <Reticle setHitPoint={setHitPoint} />
             )}
 
             {isPresenting && isPlaced && placedPosition && (
@@ -190,7 +197,7 @@ const ARScene = ({ activeModel, isPlaced, setIsPlaced, placedPosition, setPlaced
     );
 };
 
-// ... InfoPanel Component (Unchanged) ...
+// ... InfoPanel Component ...
 const InfoPanel = ({ model, onClose }) => {
     if (!model) return null;
 
@@ -258,12 +265,17 @@ const ARSpaceLabView = () => {
   const [showInfo, setShowInfo] = useState(false);
   const [isInAR, setIsInAR] = useState(false); // Track AR session state
 
+  // Hit Point Ref for Reticle communication
+  const hitPointRef = useRef(null);
+  const setHitPoint = (point) => {
+      hitPointRef.current = point;
+  };
+
   // Lifted State for Interactions
   const [modelRotation, setModelRotation] = useState([0, 0, 0]);
   const [modelScale, setModelScale] = useState(1);
 
   // Global Interaction Bindings
-  // Enable custom gestures in all modes (Desktop, Gyro, AR) unless Info Panel is open.
   const gesturesEnabled = !showInfo;
 
   const bind = useGesture({
@@ -273,6 +285,15 @@ const ARSpaceLabView = () => {
     },
     onPinch: ({ offset: [s] }) => {
       setModelScale(s);
+    },
+    // Handle Tap for Placement - GLOBAL LISTENER on the container
+    onClick: ({ event }) => {
+        // If in AR, not placed, and we have a valid hit point -> PLACE IT.
+        if (isInAR && !isPlaced && hitPointRef.current) {
+            console.log("Tap Detected via useGesture! Placing Model at:", hitPointRef.current);
+            setPlacedPosition(hitPointRef.current);
+            setIsPlaced(true);
+        }
     }
   }, {
     drag: { from: () => [modelRotation[1] * 100, modelRotation[0] * 100] }, 
@@ -313,11 +334,10 @@ const ARSpaceLabView = () => {
   const handleReset = () => {
       setIsPlaced(false);
       setPlacedPosition(null);
+      hitPointRef.current = null; // Reset reticle tracking
       setModelRotation([0,0,0]);
       setModelScale(1);
       setShowInfo(false);
-      // Don't reset isInAR or useGyro here potentially? 
-      // If user resets Placement, they are still in AR session.
   };
 
   const onModelSelect = () => {
@@ -327,8 +347,6 @@ const ARSpaceLabView = () => {
 
   return (
     <div {...bind()} className="relative w-full h-screen bg-black overflow-hidden font-sans touch-none">
-      
-      {/* UI Layer - Pointer Events managed carefully */}
       
       {/* HUD: Back & Info */}
       <div className="absolute top-0 left-0 w-full p-6 z-40 pointer-events-none">
@@ -346,7 +364,7 @@ const ARSpaceLabView = () => {
         </div>
       </div>
       
-       {/* Info Panel Overlay - Stop Propagation to prevent gestures */}
+       {/* Info Panel Overlay */}
        {showInfo && (
            <div className="absolute inset-0 z-50 flex items-end pointer-events-auto" onPointerDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
                <InfoPanel model={activeModel} onClose={() => setShowInfo(false)} />
@@ -413,12 +431,9 @@ const ARSpaceLabView = () => {
                 modelRotation={modelRotation}
                 modelScale={modelScale}
                 onModelSelect={onModelSelect}
+                setHitPoint={setHitPoint}
             />
             {/* Controls Logic */}
-            {/* Simulation Mode: If using custom gestures (gesturesEnabled), we disable OrbitControls rotation so drag rotates the MODEL, not the CAMERA. */}
-            {/* But we might want Zoom? Custom gestures handle pinch zoom. Desktop scroll zoom is OrbitControls. */}
-            {/* Let's try: Enable OrbitControls but disable ROTATE if gestures are on? No, useGestures captures drag. */}
-            {/* Safest bet: If gesturesEnabled, NO OrbitControls. User cannot move camera, only rotate object. This matches "Laboratory" feel. */}
             {!store.inAR && !useGyro && !gesturesEnabled && <OrbitControls makeDefault />} 
             {!store.inAR && useGyro && <DeviceOrientationControls />}
         </XR>
@@ -436,13 +451,12 @@ const ARSpaceLabView = () => {
   );
 };
 
-
-// Keep helpers exact same
 const CategoryTab = ({ label, icon: Icon, active, onClick }) => (
     <button onClick={onClick} className={`flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-md transition-all pointer-events-auto ${active ? 'bg-cyan-500/20 border border-cyan-400 text-white' : 'bg-black/40 border border-white/10 text-white/50 hover:bg-white/10'}`}>
         <Icon size={16} /> <span className="text-xs font-mono uppercase tracking-wider">{label}</span>
     </button>
 );
+
 const ModelCard = ({ model, active, onClick }) => (
     <button onClick={onClick} className={`flex flex-col items-center p-3 rounded-xl backdrop-blur-md transition-all w-24 border pointer-events-auto ${active ? 'bg-cyan-500/20 border-cyan-400' : 'bg-black/40 border-white/5 hover:border-white/20'}`}>
         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-900 to-black mb-2 flex items-center justify-center"><Box size={16} className={active ? "text-cyan-300" : "text-gray-500"} /></div>
