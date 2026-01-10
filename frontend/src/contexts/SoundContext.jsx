@@ -16,7 +16,7 @@ export const SoundProvider = ({ children }) => {
 
   // Refs for audio elements to avoid re-creation & allow control
   const hoverAudio = useRef(new Audio("/sounds/hover.mp3"));
-  const warpAudio = useRef(new Audio("/sounds/warp.mp3"));
+  const warpAudio = useRef(new Audio("/sounds/warp.m4a"));
   const scanAudio = useRef(new Audio("/sounds/scan_lock.m4a"));
   const clickAudio = useRef(new Audio("/sounds/click_mechanical.wav"));
   
