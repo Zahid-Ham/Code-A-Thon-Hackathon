@@ -34,12 +34,16 @@ const launchNativeAR = async (activeModel) => {
         console.log("Failed to load local asset, using backup.");
     }
 
-    // 2. Construct Intent with ZOOM ENABLED
-    // resizable=true: Allows pinch to zoom
-    // scale=1.0: Sets initial scale
-    // mode=ar_prefer: Forces AR view
-    const title = activeModel.name || "Space Model";
-    const sceneViewerUrl = `https://arvr.google.com/scene-viewer/1.0?file=${fileUrl}&mode=ar_prefer&resizable=true&enable_vertical_placement=true&title=${title}`;
+    // 2. Construct Intent
+    // Hubble is large/complex, vertical placement can glitch it (make it static).
+    // details: disable vertical for Hubble to force floor detection.
+    const isHubble = activeModel.name.includes('Hubble');
+    const allowVertical = !isHubble; 
+
+    // Encode URL just in case
+    const safeFileUrl = encodeURIComponent(fileUrl);
+    
+    const sceneViewerUrl = `https://arvr.google.com/scene-viewer/1.0?file=${safeFileUrl}&mode=ar_prefer&resizable=true&enable_vertical_placement=${allowVertical}&title=${title}`;
 
     if (Platform.OS === 'ios') {
         Linking.openURL('https://developer.apple.com/augmented-reality/quick-look/');
