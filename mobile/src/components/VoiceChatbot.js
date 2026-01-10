@@ -3,10 +3,27 @@ import { StyleSheet, View, TouchableOpacity, Text, ActivityIndicator, Alert, Pla
 import { Audio } from 'expo-av';
 import * as Speech from 'expo-speech';
 import { Ionicons } from '@expo/vector-icons'; // Or lucide-react-native if installed, usually Ionicons is standard in Expo
+import Constants from 'expo-constants';
 
-// HARDCODED LOCALHOST (Android Emulator uses 10.0.2.2, iOS uses localhost)
-// Replace with your actual LAN IP if testing on physical device
-const API_URL = 'http://192.168.0.104:5000/api';
+// Dynamic IP Detection (Dev Mode)
+const getApiUrl = () => {
+    // In production, valid URL. In Dev, usage Metro IP.
+    if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+    
+    const debuggerHost = Constants.expoConfig?.hostUri || Constants.manifest?.debuggerHost;
+    
+    if (debuggerHost) {
+        const ip = debuggerHost.split(':')[0];
+        // Use the detected IP with port 5000
+        return `http://${ip}:5000/api`;
+    }
+    
+    // Fallback for Emulator or if detection fails
+    return Platform.OS === 'android' ? 'http://10.0.2.2:5000/api' : 'http://localhost:5000/api';
+};
+
+const API_URL = getApiUrl();
+console.log("Dynamic API URL:", API_URL);
 
 const VoiceChatbot = () => {
     const [recording, setRecording] = useState(null);

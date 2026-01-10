@@ -9,51 +9,68 @@ import * as THREE from 'three';
 import { Asset } from 'expo-asset';
 import VoiceChatbot from './src/components/VoiceChatbot';
 
-// --- Native AR Launcher (Dynamic) ---
+import * as FileSystem from 'expo-file-system';
+
+// --- Native AR Launcher (Robust Cache) ---
 const launchNativeAR = async (activeModel) => {
-    // 1. Try to resolve the LOCAL asset (Earth/Mars) to a serve-able URL
-    // Expo allows getting the HTTP URL of the asset from the Dev Server
-    let fileUrl = 'https://raw.githubusercontent.com/google/model-viewer/master/packages/shared-assets/models/Astronaut.glb'; // Default Backup (Space Themed)
-    
-    // Specific Fallbacks if local fails (Better than Duck)
-    if (activeModel.name === 'Earth') {
-         // Use a high-quality public Earth if local fails
-         // fileUrl = 'https://raw.githubusercontent.com/google/model-viewer/master/packages/shared-assets/models/Astronaut.glb'; 
-         // Note: Finding a raw persistent Earth GLB on github is tricky. 
-         // We stick to Astronaut to avoid broken links, but we TRY local first.
-    }
-
     try {
+        // 1. Resolve Asset
         const asset = Asset.fromModule(activeModel.asset);
-        await asset.downloadAsync(); 
-        if (asset.uri) {
-            console.log("Local Asset URI:", asset.uri);
-            fileUrl = asset.uri;
+        await asset.downloadAsync();
+        
+        let fileUri = asset.uri;
+
+        // 2. Download to Cache (Fixes HTTP access issue for external Intent)
+        // Google Scene Viewer needs a Content URI or Public HTTPS. 
+        // We will make a local copy.
+        const fileName = `${activeModel.id}.glb`;
+        const localUri = FileSystem.cacheDirectory + fileName;
+        
+        const fileInfo = await FileSystem.getInfoAsync(localUri);
+        
+        if (!fileInfo.exists) {
+            console.log("Downloading model to cache...", fileUri);
+            await FileSystem.downloadAsync(fileUri, localUri);
+        } else {
+            console.log("Model found in cache:", localUri);
         }
-    } catch (e) {
-        console.log("Failed to load local asset, using backup.");
-    }
 
-    // 2. Construct Intent
-    // Hubble is large/complex, vertical placement can glitch it (make it static).
-    // details: disable vertical for Hubble to force floor detection.
-    const isHubble = activeModel.name.includes('Hubble');
-    const allowVertical = !isHubble; 
+        // 3. Get Content URI (Android)
+        // Start with file://
+        let finalUri = localUri;
+        
+        if (Platform.OS === 'android') {
+             try {
+                // Convert file:// to content:// for Intent access
+                const contentUri = await FileSystem.getContentUriAsync(localUri);
+                if (contentUri) finalUri = contentUri;
+             } catch (e) {
+                 console.log("Content URI conversion failed, trying file://");
+             }
+        }
 
-    // Encode URL just in case
-    const safeFileUrl = encodeURIComponent(fileUrl);
-    
-    const sceneViewerUrl = `https://arvr.google.com/scene-viewer/1.0?file=${safeFileUrl}&mode=ar_prefer&resizable=true&enable_vertical_placement=${allowVertical}&title=${title}`;
+        // 4. Construct Intent
+        const isHubble = activeModel.name.includes('Hubble');
+        const allowVertical = !isHubble; 
+        
+        // Encode for safety
+        const safeUri = encodeURIComponent(finalUri);
+        
+        // link to scene viewer
+        // Use 'file' parameter with content URI
+        const sceneViewerUrl = `https://arvr.google.com/scene-viewer/1.0?file=${safeUri}&mode=ar_prefer&resizable=true&enable_vertical_placement=${allowVertical}&title=${activeModel.name}`;
+      
+        if (Platform.OS === 'ios') {
+            Linking.openURL('https://developer.apple.com/augmented-reality/quick-look/');
+            return;
+        }
 
-    if (Platform.OS === 'ios') {
-        Linking.openURL('https://developer.apple.com/augmented-reality/quick-look/');
-        return;
-    }
-
-    try {
+        console.log("Launching AR Intent:", sceneViewerUrl);
         await Linking.openURL(sceneViewerUrl);
+        
     } catch (e) {
-        alert("AR Viewer failed. Ensure Google Chrome is installed.");
+        console.error("AR Launch Error:", e);
+        alert("Failed to launch AR. Ensure Google Play Services for AR is installed.");
     }
 };
 
