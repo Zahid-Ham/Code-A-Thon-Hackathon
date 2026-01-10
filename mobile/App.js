@@ -19,19 +19,18 @@ const launchNativeAR = async (activeModel) => {
         let finalUri = asset.uri;
         console.log("Resolved Model URI:", finalUri);
 
-        // 2. Construct Intent (Standard Google Scene Viewer Link)
-        // intent:// scheme often works better for redirection than https:// link on some Androids
-        // But the user asked for "redirecting to the link"
+        // 2. Construct Safe HTTPS URL (Deep Link)
+        // This is the "old method" -> Opens in Browser -> Android redirects to Scene Viewer App if capable
+        // It avoids the crash because all phones can handle 'https://'
         
         const isHubble = activeModel.name.includes('Hubble');
         const allowVertical = !isHubble; 
         const title = encodeURIComponent(activeModel.name);
         
-        // We use the intent scheme to force the Android App to open
-        // S.browser_fallback_url ensures if it fails, it tries to open in browser
-        const scheme = `intent://arvr.google.com/scene-viewer/1.0?file=${finalUri}&mode=ar_prefer&resizable=true&enable_vertical_placement=${allowVertical}&title=${title}#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;S.browser_fallback_url=https://developers.google.com/ar;end;`;
+        // Use standard HTTPS. Android App Links will intercept this.
+        const scheme = `https://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(finalUri)}&mode=ar_prefer&resizable=true&enable_vertical_placement=${allowVertical}&title=${title}`;
 
-        console.log("Launching AR Intent");
+        console.log("Launching AR (HTTPS):", scheme);
         await Linking.openURL(scheme);
         
     } catch (e) {
