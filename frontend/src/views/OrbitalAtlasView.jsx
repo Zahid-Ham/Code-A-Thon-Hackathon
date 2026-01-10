@@ -1,9 +1,11 @@
 import React from 'react';
 import { OrbitalAtlasProvider, useOrbitalAtlas } from '../contexts/OrbitalAtlasContext';
 import OrbitalEarth from '../components/OrbitalEarth';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, X } from 'lucide-react';
 
 const Inspector = () => {
-    const { selectedSat, selectedDetails, loading } = useOrbitalAtlas();
+    const { selectedSat, setSelectedSat, selectedDetails, loading } = useOrbitalAtlas();
     const [isExpanded, setIsExpanded] = React.useState(false);
     
     // Reset expanded state when sat changes
@@ -19,19 +21,32 @@ const Inspector = () => {
     return (
         <div className={`absolute top-20 right-5 w-96 bg-black/90 backdrop-blur-xl border border-cyan-500/30 rounded-xl text-white shadow-[0_0_30px_rgba(0,240,255,0.2)] transition-all duration-300 ${isExpanded ? 'h-[80vh]' : 'h-auto'} flex flex-col overflow-hidden`}>
              
+             {/* Close Button */}
+             <button 
+                onClick={() => setSelectedSat(null)}
+                className="absolute top-2 right-2 z-50 p-2 rounded-full bg-black/50 hover:bg-black/80 text-white/50 hover:text-white transition-colors"
+             >
+                <X size={20} />
+             </button>
+
              {/* Satellite Image Header */}
              <div className="relative w-full h-48 bg-black/50 shrink-0">
-                {selectedDetails?.img ? (
-                    <img src={selectedDetails.img} alt={selectedSat.name} className="w-full h-full object-cover" />
+                {selectedDetails?.img && selectedDetails.img !== 'N/A' ? (
+                    <img 
+                        src={selectedDetails.img} 
+                        alt={selectedSat.name} 
+                        className="w-full h-full object-cover" 
+                        onError={(e) => {e.target.style.display='none'}}
+                    />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-900 to-black">
                         <div className="text-6xl opacity-20">🛰️</div>
                     </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
-                <div className="absolute bottom-4 left-6">
-                    <h2 className="text-2xl font-bold text-white mb-0 drop-shadow-md">{selectedSat.name}</h2>
-                    <div className="text-xs text-cyan-400 font-mono tracking-widest uppercase">{selectedSat.orbitType} ORBIT • #{selectedSat.satelliteId}</div>
+                <div className="absolute bottom-4 left-6 pr-10">
+                    <h2 className="text-2xl font-bold text-white mb-0 drop-shadow-md leading-tight">{selectedSat.name}</h2>
+                    <div className="text-xs text-cyan-400 font-mono tracking-widest uppercase mt-1">{selectedSat.orbitType} ORBIT • #{selectedSat.satelliteId}</div>
                 </div>
              </div>
 
@@ -60,11 +75,11 @@ const Inspector = () => {
                             </div>
                         </div>
 
-                        {/* Why It Matters */}
+                        {/* Why It Matters (Expanded) */}
                         {(selectedDetails.realWorldImpact || selectedDetails.description) && (
-                            <div className="bg-cyan-900/20 p-3 border-l-2 border-cyan-500">
-                                <div className="text-cyan-500/60 text-xs uppercase tracking-wider mb-1">Why This Matters</div>
-                                <div className="text-sm italic max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-500/30 pr-2">
+                            <div className="bg-cyan-900/10 p-4 border-l-2 border-cyan-500 rounded-r-lg">
+                                <div className="text-cyan-400 text-xs font-bold uppercase tracking-wider mb-2">INTELLIGENCE BRIEF</div>
+                                <div className="text-sm text-gray-300 italic max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-500/30 pr-2 leading-relaxed">
                                     "{selectedDetails.realWorldImpact || selectedDetails.description}"
                                 </div>
                             </div>
@@ -229,9 +244,6 @@ const SatelliteList = () => {
         </div>
     );
 };
-
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
 
 const OrbitalAtlasView = () => {
     const navigate = useNavigate();

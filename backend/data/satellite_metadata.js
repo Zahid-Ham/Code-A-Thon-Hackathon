@@ -20,6 +20,7 @@ module.exports = {
     missionType: "Human Spaceflight",
     primaryUse: "Research Station",
     realWorldImpact: "China's permanent space station proving long-term habitation technology.",
+    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Tiangong_space_station_render_%282022%29.png/640px-Tiangong_space_station_render_%282022%29.png",
     history: "The core module Tianhe was launched in 2021, marking the beginning of the verification phase of the Tiangong space station.",
     instruments: ["High Energy Cosmic-Radiation Detection", "Space Solar Telescope"],
     achievements: "First long-term orbital station for China."
@@ -33,6 +34,7 @@ module.exports = {
     missionType: "Astronomy",
     primaryUse: "Deep Space Imaging",
     realWorldImpact: "Revolutionized our understanding of the universe, discovering dark energy and imaging distant galaxies.",
+    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/HST-SM4.jpeg/640px-HST-SM4.jpeg",
     history: "Launched aboard Discovery (STS-31). Despite an initial mirror flaw, servicing missions corrected the optics, making it one of the most productive scientific instruments ever.",
     instruments: ["Wide Field Camera 3 (WFC3)", "Cosmic Origins Spectrograph (COS)", "Advanced Camera for Surveys (ACS)"],
     achievements: "Determined the rate of expansion of the universe; Discovered that black holes are common in galaxy centers."
@@ -46,6 +48,7 @@ module.exports = {
     missionType: "Astronomy",
     primaryUse: "Infrared Astronomy",
     realWorldImpact: "Seeing the first galaxies formed after the Big Bang.",
+    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/James_Webb_Space_Telescope_Mirror37.jpg/640px-James_Webb_Space_Telescope_Mirror37.jpg"
   },
 
   // WEATHER
@@ -56,6 +59,7 @@ module.exports = {
     missionType: "Weather Monitoring",
     primaryUse: "Meteorology",
     realWorldImpact: "Provides critical hurricane tracking and severe weather alerts for the Americas.",
+    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/GOES-R_Spacecraft.jpg/640px-GOES-R_Spacecraft.jpg"
   },
   
   // NAVIGATION
@@ -66,6 +70,7 @@ module.exports = {
     missionType: "Navigation",
     primaryUse: "Global Positioning",
     realWorldImpact: "Part of the constellation enabling GPS on your phone.",
+    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/GPS_Satellite_NASA_art-iif.jpg/640px-GPS_Satellite_NASA_art-iif.jpg"
   },
 
   // COMMS
@@ -76,5 +81,6 @@ module.exports = {
     missionType: "Communications",
     primaryUse: "Internet Service",
     realWorldImpact: "Providing low-latency internet to remote areas worldwide.",
+    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Starlink_Mission_patch.png/480px-Starlink_Mission_patch.png"
   }
 };

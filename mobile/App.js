@@ -9,68 +9,34 @@ import * as THREE from 'three';
 import { Asset } from 'expo-asset';
 import VoiceChatbot from './src/components/VoiceChatbot';
 
-import * as FileSystem from 'expo-file-system';
-
-// --- Native AR Launcher (Robust Cache) ---
+// Reverting to direct link method as per user request
 const launchNativeAR = async (activeModel) => {
     try {
-        // 1. Resolve Asset
+        // 1. Resolve Asset URI (likely http://IP:PORT/... in dev)
         const asset = Asset.fromModule(activeModel.asset);
         await asset.downloadAsync();
         
-        let fileUri = asset.uri;
+        let finalUri = asset.uri;
+        console.log("Resolved Model URI:", finalUri);
 
-        // 2. Download to Cache (Fixes HTTP access issue for external Intent)
-        // Google Scene Viewer needs a Content URI or Public HTTPS. 
-        // We will make a local copy.
-        const fileName = `${activeModel.id}.glb`;
-        const localUri = FileSystem.cacheDirectory + fileName;
+        // 2. Construct Intent (Standard Google Scene Viewer Link)
+        // intent:// scheme often works better for redirection than https:// link on some Androids
+        // But the user asked for "redirecting to the link"
         
-        const fileInfo = await FileSystem.getInfoAsync(localUri);
-        
-        if (!fileInfo.exists) {
-            console.log("Downloading model to cache...", fileUri);
-            await FileSystem.downloadAsync(fileUri, localUri);
-        } else {
-            console.log("Model found in cache:", localUri);
-        }
-
-        // 3. Get Content URI (Android)
-        // Start with file://
-        let finalUri = localUri;
-        
-        if (Platform.OS === 'android') {
-             try {
-                // Convert file:// to content:// for Intent access
-                const contentUri = await FileSystem.getContentUriAsync(localUri);
-                if (contentUri) finalUri = contentUri;
-             } catch (e) {
-                 console.log("Content URI conversion failed, trying file://");
-             }
-        }
-
-        // 4. Construct Intent
         const isHubble = activeModel.name.includes('Hubble');
         const allowVertical = !isHubble; 
+        const title = encodeURIComponent(activeModel.name);
         
-        // Encode for safety
-        const safeUri = encodeURIComponent(finalUri);
-        
-        // link to scene viewer
-        // Use 'file' parameter with content URI
-        const sceneViewerUrl = `https://arvr.google.com/scene-viewer/1.0?file=${safeUri}&mode=ar_prefer&resizable=true&enable_vertical_placement=${allowVertical}&title=${activeModel.name}`;
-      
-        if (Platform.OS === 'ios') {
-            Linking.openURL('https://developer.apple.com/augmented-reality/quick-look/');
-            return;
-        }
+        // We use the intent scheme to force the Android App to open
+        // S.browser_fallback_url ensures if it fails, it tries to open in browser
+        const scheme = `intent://arvr.google.com/scene-viewer/1.0?file=${finalUri}&mode=ar_prefer&resizable=true&enable_vertical_placement=${allowVertical}&title=${title}#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;S.browser_fallback_url=https://developers.google.com/ar;end;`;
 
-        console.log("Launching AR Intent:", sceneViewerUrl);
-        await Linking.openURL(sceneViewerUrl);
+        console.log("Launching AR Intent");
+        await Linking.openURL(scheme);
         
     } catch (e) {
         console.error("AR Launch Error:", e);
-        alert("Failed to launch AR. Ensure Google Play Services for AR is installed.");
+        alert("Failed to launch AR. Ensure Google Play Services for AR is installed and permitted.");
     }
 };
 

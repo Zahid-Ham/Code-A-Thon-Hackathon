@@ -43,6 +43,7 @@ import {
 const Planet = ({ position, size, color, type, name, description }) => {
   const meshRef = useRef();
   const [hovered, setHovered] = useState(false);
+  const { playHover } = useSound(); // Use hook inside component
 
   useFrame((state, delta) => {
     if (meshRef.current) {
@@ -54,7 +55,7 @@ const Planet = ({ position, size, color, type, name, description }) => {
     <group position={position}>
       <mesh
         ref={meshRef}
-        onPointerOver={() => setHovered(true)}
+        onPointerOver={() => { setHovered(true); playHover(); }}
         onPointerOut={() => setHovered(false)}
       >
         <sphereGeometry args={[size, 64, 64]} />
@@ -546,23 +547,41 @@ const AsteroidField = ({ performanceMode }) => {
 
 const CosmicLanding = () => {
   const navigate = useNavigate();
-  const { updateMix } = useSound();
+  const { updateMix, playHover, playClick, playScan } = useSound();
   const [scrollOffset, setScrollOffset] = useState(0);
   const [performanceMode, setPerformanceMode] = useState(false);
   const [isWarping, setIsWarping] = useState(false);
+  const prevPlanetRef = useRef(null);
 
-  // Audio Logic
+  // Audio Logic: Adaptive Mixing
   useEffect(() => {
-    const spaceVol = getOpacityForRange(scrollOffset, 0.0, 0.2, 0.1);
-    const cockpitVol = getOpacityForRange(scrollOffset, 0.1, 0.8, 0.1);
-    const reflectionVol = getOpacityForRange(scrollOffset, 0.7, 1.0, 0.1);
+    // Space: Fades out as we enter "cockpit" mode
+    const spaceVol = getOpacityForRange(scrollOffset, 0.0, 0.3, 0.1); 
+    // Cockpit: Hums during fast travel
+    const cockpitVol = getOpacityForRange(scrollOffset, 0.2, 0.8, 0.1); 
+    // Reflection: Ethereal pads in the deep void
+    const reflectionVol = getOpacityForRange(scrollOffset, 0.6, 0.9, 0.1); 
+    // Mystery: Dark drone for specific narrative moments or deep space
+    const mysteryVol = getOpacityForRange(scrollOffset, 0.4, 1.0, 0.1); 
 
     updateMix({
       space: spaceVol,
       cockpit: cockpitVol,
       reflection: reflectionVol,
+      mystery: mysteryVol,
     });
   }, [scrollOffset, updateMix]);
+
+  // Planet Scan Sound Trigger
+  const activePlanet = getActivePlanet(scrollOffset);
+  useEffect(() => {
+    if (activePlanet && activePlanet.name !== prevPlanetRef.current) {
+        playScan();
+        prevPlanetRef.current = activePlanet.name;
+    } else if (!activePlanet) {
+        prevPlanetRef.current = null;
+    }
+  }, [activePlanet, playScan]);
 
   const handleExplore = () => {
     setIsWarping(true);
@@ -593,7 +612,8 @@ const CosmicLanding = () => {
 
       {/* 2. Controls */}
       <div
-        onClick={() => setPerformanceMode(!performanceMode)}
+        onClick={() => { playClick(); setPerformanceMode(!performanceMode); }}
+        onMouseEnter={playHover}
         className="fixed bottom-6 left-6 z-50 p-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 cursor-pointer transition-colors backdrop-blur-md"
         title={
           performanceMode ? "Enable High Quality" : "Enable Performance Mode"
@@ -606,7 +626,8 @@ const CosmicLanding = () => {
       </div>
 
       <div
-        onClick={handleExplore}
+        onClick={() => { playClick(); handleExplore(); }}
+        onMouseEnter={playHover}
         className="fixed top-6 right-6 z-50 px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:border-cyan-500/50 cursor-pointer transition-all backdrop-blur-md group flex items-center gap-2"
       >
         <span className="text-[10px] font-mono tracking-widest text-white/50 group-hover:text-white">

@@ -54,8 +54,8 @@ const TransitionLayout = () => {
         )}
       </AnimatePresence>
 
-      {/* Global AI Assistant */}
-      <SpaceChatbot />
+      {/* Global AI Assistant - Hidden on Landing & Dashboard */}
+      {!['/', '/dashboard'].includes(location.pathname) && <SpaceChatbot />}
     </>
   );
 };
