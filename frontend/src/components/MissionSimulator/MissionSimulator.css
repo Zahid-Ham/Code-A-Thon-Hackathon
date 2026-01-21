@@ -1,0 +1,218 @@
+/* Global Background & Container */
+.mission-simulator-container {
+    width: 100vw;
+    height: 100vh;
+    background-color: #000;
+    background-image:
+        radial-gradient(circle at 50% 50%, rgba(20, 30, 50, 0.5) 0%, rgba(0, 0, 0, 1) 100%),
+        url('https://www.transparenttextures.com/patterns/stardust.png');
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-family: 'Rajdhani', sans-serif;
+    position: relative;
+}
+
+/* --- INTRO BRIEFING PHASE --- */
+.briefing-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    z-index: 50;
+    text-align: center;
+}
+
+.briefing-card {
+    max-width: 800px;
+    width: 90%;
+    background: linear-gradient(135deg, rgba(20, 20, 30, 0.95), rgba(0, 0, 0, 0.98));
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    box-shadow: 0 0 50px rgba(0, 240, 255, 0.1);
+    padding: 3rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.briefing-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: #00f0ff;
+    box-shadow: 0 0 10px #00f0ff;
+}
+
+.briefing-title {
+    font-size: 3rem;
+    font-weight: 900;
+    letter-spacing: 0.5rem;
+    color: #fff;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+}
+
+.briefing-prob {
+    font-size: 1.2rem;
+    color: #aaa;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+    border-left: 2px solid rgba(255, 255, 255, 0.2);
+    padding-left: 1.5rem;
+    text-align: left;
+}
+
+.briefing-btn {
+    padding: 1rem 3rem;
+    font-size: 1.2rem;
+    font-weight: bold;
+    letter-spacing: 0.2rem;
+    text-transform: uppercase;
+    background: #00f0ff;
+    color: #000;
+    border: none;
+    cursor: pointer;
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    transition: all 0.3s ease;
+}
+
+.briefing-btn:hover {
+    background: #fff;
+    box-shadow: 0 0 30px #00f0ff;
+}
+
+/* --- HEADER --- */
+.sim-header {
+    height: 70px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 2rem;
+    background: rgba(10, 15, 25, 0.9);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    z-index: 40;
+}
+
+.sim-main-grid {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    justify-content: center;
+    background: radial-gradient(circle at center, #1a1a2e 0%, #000 100%);
+    perspective: 1000px;
+}
+
+.sim-game-container {
+    width: 100%;
+    max-width: 1200px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 2rem;
+    overflow-y: auto;
+}
+
+/* Scrollbar styling */
+.sim-game-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.sim-game-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.sim-game-container::-webkit-scrollbar-thumb {
+    background: rgba(0, 240, 255, 0.3);
+    border-radius: 4px;
+}
+
+/* Stats Row in Header */
+.sim-stats {
+    display: flex;
+    gap: 3rem;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    color: #666;
+    letter-spacing: 2px;
+    margin-bottom: 2px;
+}
+
+.stat-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    font-family: 'Share Tech Mono', monospace;
+}
+
+/* Choice Cards */
+.decision-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.decision-card {
+    position: relative;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 2rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.decision-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 2px;
+    height: 100%;
+    background: #444;
+    transition: all 0.3s ease;
+}
+
+.decision-card:hover {
+    background: rgba(0, 240, 255, 0.05);
+    transform: translateX(5px);
+    border-color: rgba(0, 240, 255, 0.3);
+}
+
+.decision-card:hover::before {
+    background: #00f0ff;
+    box-shadow: 0 0 10px #00f0ff;
+}
+
+.decision-card h3 {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.2rem;
+    color: #fff;
+    margin: 0 0 0.5rem 0;
+}
+
+.decision-card p {
+    font-size: 0.9rem;
+    color: #999;
+    line-height: 1.4;
+    margin: 0;
+}
