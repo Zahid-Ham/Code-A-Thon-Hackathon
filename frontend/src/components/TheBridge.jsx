@@ -9,7 +9,8 @@ import {
   GraduationCap,
   Satellite,
   ArrowRight,
-  Box
+  Box,
+  BrainCircuit
 } from 'lucide-react';
 import SpaceDust from './SpaceDust';
 import { useSound } from '../contexts/SoundContext';
@@ -85,6 +86,16 @@ const modules = [
     color: '#FF4400',
     link: '/ar-lab',
     status: 'BETA'
+  },
+  {
+    id: 'mission-simulator',
+    title: 'Mission Simulator',
+    subtitle: 'Tactical Scenarios',
+    description: 'Test your command skills in simulated space mission scenarios.',
+    icon: BrainCircuit,
+    color: '#F472B6',
+    link: '/mission-simulator',
+    status: 'NEW'
   }
 ];
 
