@@ -12,7 +12,7 @@ require('dotenv').config(); // Load environment variables
 const app = express();
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT} (Accessible via LAN)`);
+  console.log(`Server running on port ${PORT} (Accessible via LAN)`);
 });
 const NASA_API_KEY = process.env.NASA_API_KEY || 'DEMO_KEY';
 
@@ -182,26 +182,140 @@ app.post('/api/mission-intel', async (req, res) => {
   }
 });
 
+// --- WHAT IF ANALYSIS CHATBOT (GROQ AI) ---
+app.post('/api/mission-whatif', async (req, res) => {
+  const { scenario, userChoice, outcome, question } = req.body;
+  const apiKey = process.env.GROQ_API_KEY;
+
+  if (!apiKey || apiKey === 'YOUR_GROQ_API_KEY_HERE') {
+    return res.json({
+      reply: "Simulation Protocol: Neural Link Inactive. I cannot perform deep historical divergence analysis without a valid API Key."
+    });
+  }
+
+  try {
+    const Groq = require('groq-sdk');
+    const groq = new Groq({ apiKey });
+
+    const allChoices = scenario.choices.map(c => `- Option: ${c.text} (Risk: ${c.risk.failureconsequences})`).join('\n');
+
+    const systemPrompt = `
+            You are the Flight Dynamics Officer (FDO) AI.
+            
+            SCENARIO CONTEXT:
+            Event: ${scenario.title}
+            Description: ${scenario.description}
+            
+            AVAILABLE OPTIONS:
+            ${allChoices}
+            
+            COMMAND COMMANDER'S DECISION:
+            Chosen Action: "${userChoice.text}"
+            Outcome: ${outcome.title} (${outcome.success ? "SUCCESS" : "FAILURE"})
+            Outcome Detail: ${outcome.message}
+            
+            USER INQUIRY: "${question}"
+            
+            DIRECTIVE:
+            1. Analyze the timeline divergence. Explain EXACTLY what would have happened if they chose differently, using realistic spaceflight physics/logic.
+            2. If they ask about the current outcome, explain the technical reasons for the success/failure.
+            3. Tone: Professional, Technical, slightly robotic but helpful. use terms like "Delta-V", "Telemetry", "Structural Load", "Max-Q".
+            4. Keep response under 50 words.
+            5. STRICT OUTPUT RULE: Do NOT use markdown formatting. Do NOT use **bold** or *italics*. Use plain text only.
+        `;
+
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: question }
+      ],
+      model: 'llama-3.1-8b-instant',
+      temperature: 0.7,
+      max_tokens: 150
+    });
+
+    res.json({ reply: chatCompletion.choices[0].message.content });
+
+  } catch (error) {
+    console.error('[WhatIf] Groq Error:', error.message);
+    res.status(500).json({ error: 'Analysis stream interrupted.' });
+  }
+});
+
+// --- HISTORICAL ARCHIVE AI (GROQ) ---
+app.post('/api/mission-history', async (req, res) => {
+  const { scenario, choice, outcome } = req.body;
+  const apiKey = process.env.GROQ_API_KEY;
+
+  if (!apiKey || apiKey === 'YOUR_GROQ_API_KEY_HERE') {
+    return res.json({
+      mission: "APOLLO 13 (Simulated)",
+      detail: "In the absence of AI uplink, we reference Apollo 13: The crew manually corrected their trajectory using the LEM engine, surviving a critical oxygen tank failure."
+    });
+  }
+
+  try {
+    const Groq = require('groq-sdk');
+    const groq = new Groq({ apiKey });
+
+    const systemPrompt = `
+        Act as a Spaceflight Historian database.
+        
+        TASK:
+        Find a REAL historical space mission (NASA, Soviet, ESA, SpaceX, etc.) that faced a similar challenge to this scenario:
+        - Scenario: "${scenario.title}: ${scenario.description}"
+        - User Choice: "${choice.text}" (Outcome: ${outcome.success ? 'Success' : 'Failure'})
+
+        OUTPUT FORMAT (JSON):
+        {
+            "mission": "NAME OF REAL MISSION (Year)",
+            "detail": "A 1-2 sentence summary of what actually happened in that real mission and how it relates to the user's situation. 40 words max. Plain text only.",
+            "solution": "What the agency or crew actually DID to solve (or attempt to solve) the issue. 40 words max.",
+            "outcome": "A short, one-line summary of the final result (e.g. 'Mission Saved', 'Crew Lost')."
+        }
+
+        Note: If no direct match exists, choose the closest thematic match (e.g., power failure, critical reentry, communication loss).
+    `;
+
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [{ role: 'user', content: systemPrompt }],
+      model: 'llama-3.1-8b-instant',
+      temperature: 0.4,
+      response_format: { type: 'json_object' }
+    });
+
+    const result = JSON.parse(chatCompletion.choices[0].message.content);
+    res.json(result);
+
+  } catch (error) {
+    console.error('[AI] History Error:', error.message);
+    res.json({
+      mission: "DATA CORRUPTED",
+      detail: "Historical archives are currently unreachable due to solar flare interference."
+    });
+  }
+});
+
 // --- SPACE CHATBOT (GROQ AI) ---
 app.post('/api/chat', async (req, res) => {
-    console.log(`[CHAT] Incoming Request: ${req.body.message}`);
-    const { message, mobileMode } = req.body;
-    const apiKey = process.env.GROQ_API_KEY;
+  console.log(`[CHAT] Incoming Request: ${req.body.message}`);
+  const { message, mobileMode } = req.body;
+  const apiKey = process.env.GROQ_API_KEY;
 
-    // Simulation Mode if Key is missing
-    if (!apiKey || apiKey === 'YOUR_GROQ_API_KEY_HERE') {
-        const reply = mobileMode 
-            ? "Simulation: Audio Link Active. Asking about planets?" 
-            : "I am running in simulation mode. I can answer space questions! Did you know Saturn's density is so low it would float in water?";
-        return res.json({ reply });
-    }
+  // Simulation Mode if Key is missing
+  if (!apiKey || apiKey === 'YOUR_GROQ_API_KEY_HERE') {
+    const reply = mobileMode
+      ? "Simulation: Audio Link Active. Asking about planets?"
+      : "I am running in simulation mode. I can answer space questions! Did you know Saturn's density is so low it would float in water?";
+    return res.json({ reply });
+  }
 
-    try {
-        const Groq = require('groq-sdk');
-        const groq = new Groq({ apiKey });
-        
-        // Dynamic System Prompt based on Mode
-        let systemPrompt = `
+  try {
+    const Groq = require('groq-sdk');
+    const groq = new Groq({ apiKey });
+
+    // Dynamic System Prompt based on Mode
+    let systemPrompt = `
             You are "Cosmos", an advanced AI assistant specialized ONLY in Astronomy, Space Exploration, Physics, and Rocketry.
             
             RULES:
@@ -211,22 +325,22 @@ app.post('/api/chat', async (req, res) => {
             4. Use a wondrous, scientific tone.
         `;
 
-        const chatCompletion = await groq.chat.completions.create({
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: message }
-            ],
-            model: 'llama-3.1-8b-instant',
-            temperature: 0.7,
-            max_tokens: mobileMode ? 60 : 150
-        });
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: message }
+      ],
+      model: 'llama-3.1-8b-instant',
+      temperature: 0.7,
+      max_tokens: mobileMode ? 60 : 150
+    });
 
-        res.json({ reply: chatCompletion.choices[0].message.content });
+    res.json({ reply: chatCompletion.choices[0].message.content });
 
-    } catch (error) {
-        console.error('[Chat] Groq Error:', error.message);
-        res.status(500).json({ error: 'Comms link unstable.' });
-    }
+  } catch (error) {
+    console.error('[Chat] Groq Error:', error.message);
+    res.status(500).json({ error: 'Comms link unstable.' });
+  }
 });
 
 app.get('/', (req, res) => {
@@ -408,21 +522,21 @@ app.get('/api/celestial-events', async (req, res) => {
 
 // --- IMPACT ANALYSIS (GROQ AI) ---
 app.post('/api/impact-analysis', async (req, res) => {
-    const { eventName, eventType, location } = req.body;
-    const apiKey = process.env.GROQ_API_KEY;
+  const { eventName, eventType, location } = req.body;
+  const apiKey = process.env.GROQ_API_KEY;
 
-    // Simulation Fallback
-    if (!apiKey || apiKey === 'YOUR_GROQ_API_KEY_HERE') {
-        return res.json({ 
-            impact: "Simulation: This event has a moderate impact on local visibility. In future cycles, similar patterns may increase atmospheric interference by 15%."
-        });
-    }
+  // Simulation Fallback
+  if (!apiKey || apiKey === 'YOUR_GROQ_API_KEY_HERE') {
+    return res.json({
+      impact: "Simulation: This event has a moderate impact on local visibility. In future cycles, similar patterns may increase atmospheric interference by 15%."
+    });
+  }
 
-    try {
-        const Groq = require('groq-sdk');
-        const groq = new Groq({ apiKey });
-        
-        const prompt = `
+  try {
+    const Groq = require('groq-sdk');
+    const groq = new Groq({ apiKey });
+
+    const prompt = `
             Analyze the "Impact" of this space/earth event:
             Event: ${eventName} (${eventType})
             Location: Lat ${location?.lat}, Lng ${location?.lng}
@@ -434,18 +548,18 @@ app.post('/api/impact-analysis', async (req, res) => {
             Tone: Scientific, Concise.
         `;
 
-        const chatCompletion = await groq.chat.completions.create({
-            messages: [{ role: 'user', content: prompt }],
-            model: 'llama-3.1-8b-instant',
-            temperature: 0.7,
-            max_tokens: 100
-        });
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [{ role: 'user', content: prompt }],
+      model: 'llama-3.1-8b-instant',
+      temperature: 0.7,
+      max_tokens: 100
+    });
 
-        res.json({ impact: chatCompletion.choices[0].message.content });
-    } catch (error) {
-        console.error('[Impact] Groq Error:', error.message);
-        res.status(500).json({ error: 'Analysis failed.' });
-    }
+    res.json({ impact: chatCompletion.choices[0].message.content });
+  } catch (error) {
+    console.error('[Impact] Groq Error:', error.message);
+    res.status(500).json({ error: 'Analysis failed.' });
+  }
 });
 
 
@@ -499,95 +613,95 @@ app.post('/api/star-chart', async (req, res) => {
 const multer = require('multer');
 // Configure Multer Storage (Keep Extension for Groq)
 const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        // Ensure directory exists
-        const fs = require('fs');
-        const dir = 'uploads/';
-        if (!fs.existsSync(dir)){
-            fs.mkdirSync(dir);
-        }
-        cb(null, dir);
-    },
-    filename: function (req, file, cb) {
-        // Use original name or timestamp + ext
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, 'audio-' + uniqueSuffix + '.m4a'); // Force .m4a for mobile uploads
+  destination: function (req, file, cb) {
+    // Ensure directory exists
+    const fs = require('fs');
+    const dir = 'uploads/';
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir);
     }
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    // Use original name or timestamp + ext
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'audio-' + uniqueSuffix + '.m4a'); // Force .m4a for mobile uploads
+  }
 });
 
 const upload = multer({ storage: storage });
 
 // --- SPEECH-TO-TEXT (GROQ WHISPER) ---
 app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ error: 'No audio file uploaded.' });
-        }
-
-        const apiKey = process.env.GROQ_API_KEY;
-        if (!apiKey || apiKey === 'YOUR_GROQ_API_KEY_HERE') {
-            return res.json({ text: "Simulation: Voice Transcribed. Tell me about Mars." });
-        }
-
-        const Groq = require('groq-sdk');
-        const groq = new Groq({ apiKey });
-        const fs = require('fs');
-
-        // Groq Whisper API
-        const translation = await groq.audio.transcriptions.create({
-            file: fs.createReadStream(req.file.path),
-            model: "whisper-large-v3",
-            response_format: "json",
-            temperature: 0.0
-        });
-
-        // Cleanup
-        fs.unlinkSync(req.file.path);
-
-        res.json({ text: translation.text });
-
-    } catch (error) {
-        console.error('[Transcribe] Error:', error.message);
-        res.status(500).json({ error: 'Voice processing failed.' });
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No audio file uploaded.' });
     }
+
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey || apiKey === 'YOUR_GROQ_API_KEY_HERE') {
+      return res.json({ text: "Simulation: Voice Transcribed. Tell me about Mars." });
+    }
+
+    const Groq = require('groq-sdk');
+    const groq = new Groq({ apiKey });
+    const fs = require('fs');
+
+    // Groq Whisper API
+    const translation = await groq.audio.transcriptions.create({
+      file: fs.createReadStream(req.file.path),
+      model: "whisper-large-v3",
+      response_format: "json",
+      temperature: 0.0
+    });
+
+    // Cleanup
+    fs.unlinkSync(req.file.path);
+
+    res.json({ text: translation.text });
+
+  } catch (error) {
+    console.error('[Transcribe] Error:', error.message);
+    res.status(500).json({ error: 'Voice processing failed.' });
+  }
 });
 
 
 // --- VISIBILITY INTELLIGENCE API ---
 app.post('/api/visibility-forecast', (req, res) => {
-    try {
-        const { tle1, tle2, lat, lng, alt } = req.body;
-        
-        if (!tle1 || !tle2 || lat === undefined || lng === undefined) {
-            return res.status(400).json({ error: 'Missing TLE or coordinates' });
-        }
+  try {
+    const { tle1, tle2, lat, lng, alt } = req.body;
 
-        const passes = VisibilityTimelineService.calculateVisibility(
-            tle1, 
-            tle2, 
-            parseFloat(lat), 
-            parseFloat(lng), 
-            parseFloat(alt || 0)
-        );
-
-        res.json(passes);
-    } catch (error) {
-        console.error('[API] Visibility Forecast Error:', error.message);
-        res.status(500).json({ error: 'Failed to calculate visibility' });
+    if (!tle1 || !tle2 || lat === undefined || lng === undefined) {
+      return res.status(400).json({ error: 'Missing TLE or coordinates' });
     }
+
+    const passes = VisibilityTimelineService.calculateVisibility(
+      tle1,
+      tle2,
+      parseFloat(lat),
+      parseFloat(lng),
+      parseFloat(alt || 0)
+    );
+
+    res.json(passes);
+  } catch (error) {
+    console.error('[API] Visibility Forecast Error:', error.message);
+    res.status(500).json({ error: 'Failed to calculate visibility' });
+  }
 });
 
 app.post('/api/visibility-map', (req, res) => {
-    try {
-        const { tle1, tle2, time, lat, lng } = req.body;
-        // Pass lat/lng for static fallback
-        const footprint = VisibilityTimelineService.calculateFootprint(tle1, tle2, time, lat, lng);
-        res.json(footprint);
-    } catch (error) {
-        console.error('Vis Map Error:', error.message);
-        res.status(500).json({ error: 'Failed to generate map' });
-    }
-}); 
+  try {
+    const { tle1, tle2, time, lat, lng } = req.body;
+    // Pass lat/lng for static fallback
+    const footprint = VisibilityTimelineService.calculateFootprint(tle1, tle2, time, lat, lng);
+    res.json(footprint);
+  } catch (error) {
+    console.error('Vis Map Error:', error.message);
+    res.status(500).json({ error: 'Failed to generate map' });
+  }
+});
 
 
 // Visual Passes Endpoint
