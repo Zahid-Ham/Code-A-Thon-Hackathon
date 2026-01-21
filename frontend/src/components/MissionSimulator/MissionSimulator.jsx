@@ -1,39 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getFirstScenario, getNextScenario } from './ScenarioEngine';
+import { getFirstScenario, getNextScenario, enrichScenarioWithConfig, getMissions, getMissionById } from './ScenarioEngine';
 import { evaluateDecision, calculateScore } from './DecisionEvaluator';
 import MissionConfigurator from './common/MissionConfigurator';
+import WhatIfChatbot from './WhatIfChatbot';
 import './MissionSimulator.css';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, Activity, Play, BarChart2, Shield, DollarSign, BrainCircuit, ChevronRight, Wind, Zap, AlertOctagon } from 'lucide-react';
+import { ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, Activity, Play, BarChart2, Shield, DollarSign, BrainCircuit, ChevronRight, Wind, Zap, AlertOctagon, Globe2 } from 'lucide-react';
+
+// Animation Variants
+const fadeIn = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.5 } } };
+const slideUp = { hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 120 } } };
+const staggerContainer = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
 
 const MissionSimulator = () => {
     const navigate = useNavigate();
 
-    // States: INTRO -> SETUP -> SCENARIO -> SUMMARY
-    const [phase, setPhase] = useState('INTRO');
+    // Game Phases: INTRO -> MISSION_SELECT -> SETUP -> SCENARIO -> SUMMARY
+    const [phase, setPhase] = useState('MISSION_SELECT');
+    const [selectedMission, setSelectedMission] = useState(null);
     const [missionConfig, setMissionConfig] = useState(null);
     const [currentScenario, setCurrentScenario] = useState(null);
-
-    const [currentStats, setCurrentStats] = useState({ cost: 0, science: 0, safety: 100 });
     const [scenarioState, setScenarioState] = useState('CHOICE'); // CHOICE, PROCESSING, OUTCOME
-    const [lastOutcome, setLastOutcome] = useState(null);
     const [gameHistory, setGameHistory] = useState([]);
+    const [stats, setStats] = useState({
+        cost: 0,
+        science: 0,
+        safety: 100
+    });
+    const [lastOutcome, setLastOutcome] = useState(null);
+    const [historicalData, setHistoricalData] = useState(null);
+
+    const missions = getMissions();
 
     // Load first scenario immediately when config is done
     const handleConfigComplete = (config) => {
         setMissionConfig(config);
 
         // Set initial stats based on config
-        setCurrentStats({
+        setStats({
             cost: config.payload.cost + config.vehicle.cost,
             science: 0,
             safety: parseFloat(config.vehicle.reliability)
         });
 
-        // Load the first scenario synchronously
-        const first = getFirstScenario();
-        setCurrentScenario(first);
+        // Load the first scenario synchronously & Enrich it
+        const first = getFirstScenario(selectedMission.id);
+        const enrichedFirst = enrichScenarioWithConfig(first, config);
+        setCurrentScenario(enrichedFirst);
 
         // NOW safe to switch phase
         setPhase('SCENARIO');
@@ -47,23 +61,60 @@ const MissionSimulator = () => {
         setScenarioState('PROCESSING');
 
         // Simulate "Thinking" / Calculation time for suspense
-        setTimeout(() => {
+        setTimeout(async () => {
             const outcome = evaluateDecision(choice);
             setLastOutcome(outcome);
             setGameHistory(prev => [...prev, { scenario: currentScenario, choice, outcome }]);
 
             // Update stats immediately
-            setCurrentStats(prev => calculateScore(prev, outcome.stats));
+            setStats(prev => calculateScore(prev, outcome.stats));
             setScenarioState('OUTCOME');
+
+            // Fetch AI Historical Context
+            try {
+                const res = await fetch('http://localhost:5000/api/mission-history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        scenario: { title: currentScenario.title, description: currentScenario.description },
+                        choice: { text: choice.text },
+                        outcome: { success: outcome.success }
+                    })
+                });
+
+                if (!res.ok) {
+                    throw new Error(`Server Error: ${res.status}`);
+                }
+
+                const data = await res.json();
+                setHistoricalData(data);
+            } catch (err) {
+                console.error("Failed to fetch history:", err);
+                if (err.message.includes('404') || err.name === 'SyntaxError') {
+                    setHistoricalData({
+                        mission: "SYSTEM UPDATE REQUIRED",
+                        detail: "The Mission Control Server requires a restart to enable Neural Archives. Please run 'node server.js' again."
+                    });
+                } else {
+                    setHistoricalData({
+                        mission: "UPLINK FAILED",
+                        detail: "Could not retrieve historical archives. Check connection."
+                    });
+                }
+            }
+
         }, 1500);
     };
 
     const handleNext = () => {
         const next = getNextScenario(currentScenario.id);
         if (next) {
-            setCurrentScenario(next);
+            // Apply Dynamic Difficulty based on Config
+            const enrichedNext = enrichScenarioWithConfig(next, missionConfig);
+            setCurrentScenario(enrichedNext);
             setScenarioState('CHOICE');
             setLastOutcome(null);
+            setHistoricalData(null);
         } else {
             setPhase('SUMMARY');
         }
@@ -75,6 +126,7 @@ const MissionSimulator = () => {
         setCurrentScenario(null);
         setScenarioState('CHOICE');
         setGameHistory([]);
+        setHistoricalData(null);
     };
 
     // Helper to render stat change indicators
@@ -86,36 +138,151 @@ const MissionSimulator = () => {
         return <span className={`text-xs ml-2 font-mono ${color}`}>({sign}{val})</span>;
     };
 
+    // --- PHASE: MISSION SELECTION ---
+    if (phase === 'MISSION_SELECT') {
+        const icons = { Wind, Globe: Globe2, Zap, Shield };
+        return (
+            <div className="mission-simulator-container">
+                <div className="sim-header">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-500/20 rounded-lg">
+                            <BrainCircuit className="text-blue-400" size={24} />
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-bold tracking-[0.2em] text-white">MISSION CONTROL</h1>
+                            <div className="text-[10px] text-blue-400/80 font-mono">SELECT OPERATION</div>
+                        </div>
+                    </div>
+                    <button onClick={() => navigate('/')} className="px-4 py-2 rounded border border-white/10 hover:bg-white/5 text-xs font-mono tracking-widest transition-colors text-gray-400 hover:text-white">
+                        ABORT
+                    </button>
+                </div>
+
+                <div className="sim-main-grid">
+                    <div className="mission-select-grid">
+                        {missions.map(mission => {
+                            const Icon = icons[mission.icon] || Activity;
+                            return (
+                                <motion.div
+                                    key={mission.id}
+                                    whileHover={{ scale: 1.02 }}
+                                    className="relative group cursor-pointer"
+                                    onClick={() => {
+                                        setSelectedMission(mission);
+                                        setPhase('SETUP');
+                                    }}
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl border border-white/20" />
+                                    <div className="bg-[#0A0F1A]/90 p-8 rounded-xl border border-white/10 h-full flex flex-col gap-4 backdrop-blur-md hover:border-[color:var(--mc)]" style={{ '--mc': mission.color }}>
+                                        <div className="flex justify-between items-start">
+                                            <div className="p-3 rounded-lg bg-black/50 border border-white/10" style={{ color: mission.color }}>
+                                                <Icon size={32} />
+                                            </div>
+                                            <div className="px-2 py-1 rounded text-[10px] font-bold tracking-widest border border-white/10 bg-white/5">
+                                                {mission.difficulty}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h3 className="text-2xl font-bold text-white mb-1">{mission.title}</h3>
+                                            <div className="text-xs font-mono opacity-60 uppercase tracking-wider" style={{ color: mission.color }}>{mission.subtitle}</div>
+                                        </div>
+                                        <p className="text-sm text-gray-400 leading-relaxed font-light">
+                                            {mission.description}
+                                        </p>
+                                        <div className="mt-auto pt-4 flex gap-2">
+                                            <div className="h-1 flex-1 bg-white/10 rounded-full overflow-hidden">
+                                                <div className="h-full bg-current transition-all duration-500 group-hover:w-full w-3/4" style={{ color: mission.color, backgroundColor: mission.color }} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // --- PHASE: SUMMARY ---
+    if (phase === 'SUMMARY') {
+        const score = stats.science + stats.safety - stats.cost;
+        let rank = 'C';
+        if (score > 150) rank = 'S';
+        else if (score > 100) rank = 'A';
+        else if (score > 50) rank = 'B';
+        else if (score < 0) rank = 'F';
+
+        return (
+            <div className="mission-simulator-container">
+                <div className="flex-1 flex items-center justify-center p-8">
+                    <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="max-w-4xl w-full bg-[#0A0F1A]/95 border border-white/10 rounded-2xl p-12 backdrop-blur-xl relative overflow-hidden"
+                    >
+                        {/* Rank Watermark */}
+                        <div className="absolute -right-10 -top-10 text-[20rem] font-black text-white/5 select-none pointer-events-none font-mono">
+                            {rank}
+                        </div>
+
+                        <div className="text-center mb-12 relative z-10">
+                            <h2 className="text-4xl font-bold text-white mb-2">MISSION DEBRIEF</h2>
+                            <div className="text-blue-400 font-mono tracking-[0.5em] uppercase text-sm">Operation {selectedMission?.title} // COMPLETE</div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12 relative z-10">
+                            <div className="p-6 bg-white/5 rounded-xl border border-white/10 text-center">
+                                <div className="text-xs text-gray-400 uppercase tracking-widest mb-2">Final Rank</div>
+                                <div className={`text-6xl font-black ${rank === 'F' ? 'text-red-500' : 'text-yellow-400'}`}>{rank}</div>
+                            </div>
+                            <div className="p-6 bg-white/5 rounded-xl border border-white/10 text-center">
+                                <div className="text-xs text-gray-400 uppercase tracking-widest mb-2">Science Data</div>
+                                <div className="text-3xl font-bold text-blue-400">+{stats.science}</div>
+                                <div className="text-[10px] text-gray-500 mt-1">TB COLLECTED</div>
+                            </div>
+                            <div className="p-6 bg-white/5 rounded-xl border border-white/10 text-center">
+                                <div className="text-xs text-gray-400 uppercase tracking-widest mb-2">Budget Delta</div>
+                                <div className="text-3xl font-bold text-green-400">-${stats.cost}M</div>
+                                <div className="text-[10px] text-gray-500 mt-1">OVERRUN</div>
+                            </div>
+                            <div className="p-6 bg-white/5 rounded-xl border border-white/10 text-center">
+                                <div className="text-xs text-gray-400 uppercase tracking-widest mb-2">Crew Safety</div>
+                                <div className="text-3xl font-bold text-orange-400">{stats.safety}%</div>
+                                <div className="text-[10px] text-gray-500 mt-1">RATING</div>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-4 justify-center relative z-10">
+                            <button
+                                onClick={handleRestart}
+                                className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-all flex items-center gap-3 uppercase tracking-widest text-sm"
+                            >
+                                <RefreshCw size={18} /> Re-Deploy
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setPhase('MISSION_SELECT');
+                                    setStats({ cost: 0, science: 0, safety: 100 });
+                                }}
+                                className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg transition-all flex items-center gap-3 uppercase tracking-widest text-sm"
+                            >
+                                <Globe2 size={18} /> Mission Select
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="mission-simulator-container">
 
-            {/* PHASE 0: INTRO BRIEFING */}
-            {phase === 'INTRO' && (
-                <div className="briefing-overlay">
-                    <motion.div
-                        initial={{ scale: 0.9, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        className="briefing-card"
-                    >
-                        <div className="text-cyan-500 font-mono text-sm tracking-widest mb-4 flex items-center justify-center gap-2">
-                            <AlertOctagon size={16} /> CLASSIFIED // LEVEL 5 ACCESS
-                        </div>
-                        <h1 className="briefing-title">OPERATION SKYFALL</h1>
-                        <div className="briefing-prob">
-                            <p className="mb-4"><strong>SITUATION:</strong> A catastrophic Category 5 hurricane is forming faster than models predicted. Ground telemetry is partial.</p>
-                            <p className="mb-4"><strong>MISSION:</strong> Take full command of Mission Control. You will design the mission, launch the satellite, and navigate all critical anomalies.</p>
-                            <p><strong>STAKES:</strong> Every decision has consequences. You will deal with budget constraints, political pressure, and technical failures based on <strong>real historical spaceflight events</strong>.</p>
-                        </div>
-                        <button onClick={handleStartBriefing} className="briefing-btn flex items-center gap-2 mx-auto">
-                            <Play size={20} fill="black" /> INITIALIZE
-                        </button>
-                    </motion.div>
-                </div>
-            )}
-
+            {/* PHASE 0: MISSION SELECTION (Handled by early return), INTRO removed */}
 
             {/* HEADER */}
-            {phase !== 'INTRO' && (
+            {phase !== 'MISSION_SELECT' && (
                 <header className="sim-header">
                     <div className="flex items-center gap-4">
                         <button onClick={() => navigate('/dashboard')} className="hover:text-cyan-400 transition">
@@ -126,20 +293,20 @@ const MissionSimulator = () => {
                         </h1>
                     </div>
 
-                    {(phase === 'SCENARIO' || phase === 'SUMMARY') && currentStats && (
+                    {(phase === 'SCENARIO' || phase === 'SUMMARY') && stats && (
                         <div className="sim-stats">
-                            <div className="stat-item">
-                                <div className="stat-label flex items-center gap-1"><DollarSign size={10} /> Budget Used</div>
-                                <div className="stat-value text-white">${currentStats.cost}M</div>
-                            </div>
-                            <div className="stat-item">
-                                <div className="stat-label flex items-center gap-1"><BarChart2 size={10} /> Science</div>
-                                <div className="stat-value text-green-400">{currentStats.science}</div>
-                            </div>
-                            <div className="stat-item">
-                                <div className="stat-label flex items-center gap-1"><Shield size={10} /> Vehicle Health</div>
-                                <div className="stat-value text-cyan-400">{currentStats.safety}%</div>
-                            </div>
+                            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} className="stat-item">
+                                <div className="stat-label flex items-center gap-1"><DollarSign size={10} className="text-cyan-400" /> Budget Used</div>
+                                <div className={`stat-value ${stats.cost > 100 ? 'danger' : ''}`}>${stats.cost}M</div>
+                            </motion.div>
+                            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="stat-item">
+                                <div className="stat-label flex items-center gap-1"><BrainCircuit size={10} className="text-purple-400" /> Science</div>
+                                <div className="stat-value text-purple-200">{stats.science} TB</div>
+                            </motion.div>
+                            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="stat-item">
+                                <div className="stat-label flex items-center gap-1"><Shield size={10} className={stats.safety < 50 ? 'text-red-500' : 'text-green-400'} /> Hull Integrity</div>
+                                <div className={`stat-value ${stats.safety < 50 ? 'danger' : 'good'}`}>{stats.safety}%</div>
+                            </motion.div>
                         </div>
                     )}
 
@@ -202,8 +369,8 @@ const MissionSimulator = () => {
                                                 <div className="flex justify-between items-start mb-4">
                                                     <h3 className="text-2xl font-bold text-white group-hover:text-cyan-400 transition-colors">{choice.text}</h3>
                                                     {choice.risk && (
-                                                        <div className={`px-2 py-1 rounded text-xs font-bold ${choice.risk.successChance < 0.5 ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
-                                                            {Math.round(choice.risk.successChance * 100)}% SUCCESS RATE
+                                                        <div className={`px-2 py-1 rounded text-xs font-bold bg-white/5 text-gray-400 border border-white/10`}>
+                                                            RISK LEVEL: {choice.risk.failureconsequences ? 'HIGH' : 'MODERATE'}
                                                         </div>
                                                     )}
                                                 </div>
@@ -289,20 +456,19 @@ const MissionSimulator = () => {
                                                 </div>
                                             </div>
 
-                                            {/* WHAT IF SECTION */}
-                                            {lastOutcome.whatIf && (
+                                            {/* WHAT IF CHATBOT SECTION */}
+                                            {lastOutcome && (
                                                 <motion.div
                                                     initial={{ opacity: 0, y: 10 }}
                                                     animate={{ opacity: 1, y: 0 }}
                                                     transition={{ delay: 0.5 }}
-                                                    className="p-8 rounded-lg bg-orange-500/5 border border-orange-500/20"
+                                                    className="mt-8"
                                                 >
-                                                    <div className="flex items-center gap-2 text-orange-400 text-xs font-bold uppercase tracking-widest mb-4">
-                                                        <Zap size={14} /> The "What If" Scenario
-                                                    </div>
-                                                    <p className="text-orange-100/70 text-lg italic leading-relaxed">
-                                                        {lastOutcome.whatIf}
-                                                    </p>
+                                                    <WhatIfChatbot
+                                                        scenario={gameHistory[gameHistory.length - 1]?.scenario || currentScenario}
+                                                        userChoice={gameHistory[gameHistory.length - 1]?.choice}
+                                                        outcome={lastOutcome}
+                                                    />
                                                 </motion.div>
                                             )}
 
@@ -321,40 +487,44 @@ const MissionSimulator = () => {
                                                     <Activity size={14} /> HISTORICAL ARCHIVE
                                                 </div>
 
-                                                {lastOutcome.realLifePrecedent ? (
+                                                {historicalData ? (
                                                     <div className="space-y-6">
-                                                        <div>
+                                                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                                                             <div className="text-gray-500 text-[10px] uppercase mb-1 tracking-widest">REAL-LIFE MISSION</div>
-                                                            <h3 className="text-2xl text-white font-bold">{lastOutcome.realLifePrecedent.mission}</h3>
-                                                        </div>
+                                                            <h3 className="text-2xl text-white font-bold">{historicalData.mission}</h3>
+                                                        </motion.div>
 
-                                                        <div>
+                                                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
                                                             <div className="text-gray-500 text-[10px] uppercase mb-1 tracking-widest">THE EVENT</div>
-                                                            <p className="text-gray-300 text-lg leading-relaxed font-light">
-                                                                {lastOutcome.realLifePrecedent.detail}
+                                                            <p className="text-gray-300 text-lg leading-relaxed font-light mb-6">
+                                                                {historicalData.detail}
                                                             </p>
-                                                        </div>
+                                                        </motion.div>
 
-                                                        <div className="mt-8 p-4 bg-white/5 rounded border-l-2 border-cyan-500/50">
-                                                            <div className="text-cyan-500 text-[10px] font-bold uppercase mb-2">Simulation Accuracy</div>
-                                                            <p className="text-xs text-gray-400 leading-relaxed">
-                                                                This event is based on verified NASA/SpaceX telemetry and historical reports. Your decision mirrors the high-stakes trade-offs faced by Flight Directors.
-                                                            </p>
-                                                        </div>
+                                                        {historicalData.solution && (
+                                                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
+                                                                <div className="text-gray-500 text-[10px] uppercase mb-1 tracking-widest">REAL-WORLD SOLUTION</div>
+                                                                <p className="text-cyan-200 text-sm leading-relaxed border-l-2 border-cyan-500 pl-3">
+                                                                    {historicalData.solution}
+                                                                </p>
+                                                            </motion.div>
+                                                        )}
+
+                                                        {historicalData.outcome && (
+                                                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} className="mt-6 pt-6 border-t border-white/10">
+                                                                <div className="text-gray-500 text-[10px] uppercase mb-1 tracking-widest">HISTORICAL OUTCOME</div>
+                                                                <div className="text-xl font-bold text-white tracking-wide">
+                                                                    {historicalData.outcome}
+                                                                </div>
+                                                            </motion.div>
+                                                        )}
                                                     </div>
                                                 ) : (
-                                                    <div className="text-center py-20">
-                                                        <Wind className="mx-auto text-white/5 mb-4" size={48} />
-                                                        <p className="text-gray-500 italic">Historical data encrypted or unavailable for this specific sequence.</p>
+                                                    <div className="text-center py-20 animate-pulse">
+                                                        <Activity className="mx-auto text-cyan-500 mb-4 animate-spin" size={32} />
+                                                        <p className="text-cyan-400 font-mono text-xs tracking-widest">DECRYPTING ARCHIVES...</p>
                                                     </div>
                                                 )}
-
-                                                <div className="mt-auto pt-8">
-                                                    <div className="text-[10px] text-gray-700 font-mono mb-2">SECURE_LOG_REF</div>
-                                                    <div className="font-mono text-[9px] text-cyan-500/30 break-all bg-black/20 p-2 rounded">
-                                                        {btoa(JSON.stringify({ id: currentScenario.id, outcome: lastOutcome.title })).substring(0, 64)}...
-                                                    </div>
-                                                </div>
                                             </div>
                                         </div>
 
@@ -365,39 +535,9 @@ const MissionSimulator = () => {
                     </div>
                 )}
 
-                {/* PHASE 3: SUMMARY */}
-                {phase === 'SUMMARY' && (
-                    <div className="sim-game-container flex items-center justify-center">
-                        <div className="max-w-2xl w-full bg-slate-900/50 p-10 border border-white/10 rounded-xl backdrop-blur-xl text-center">
-                            <h2 className="text-4xl font-bold text-white mb-2">MISSION REPORT</h2>
-                            <div className="text-xl text-cyan-400 font-mono mb-8">OPERATION COMPLETE</div>
-
-                            <div className="grid grid-cols-3 gap-4 mb-10">
-                                <div className="p-4 bg-white/5 rounded">
-                                    <div className="text-gray-400 text-sm uppercase tracking-widest mb-1">Final Cost</div>
-                                    <div className="text-2xl text-white font-mono">${currentStats.cost}M</div>
-                                </div>
-                                <div className="p-4 bg-white/5 rounded">
-                                    <div className="text-gray-400 text-sm uppercase tracking-widest mb-1">Science Data</div>
-                                    <div className="text-2xl text-green-400 font-mono">{currentStats.science}</div>
-                                </div>
-                                <div className="p-4 bg-white/5 rounded">
-                                    <div className="text-gray-400 text-sm uppercase tracking-widest mb-1">Vehicle State</div>
-                                    <div className="text-2xl text-cyan-400 font-mono">{currentStats.safety}%</div>
-                                </div>
-                            </div>
-
-                            <button onClick={handleRestart} className="px-8 py-3 bg-cyan-500 text-black font-bold uppercase tracking-widest hover:bg-white transition-colors">
-                                New Mission
-                            </button>
-                        </div>
-                    </div>
-                )}
-
             </div>
-        </div>
+        </div >
     );
 };
 
 export default MissionSimulator;
-

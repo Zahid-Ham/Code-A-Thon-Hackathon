@@ -9,7 +9,8 @@ import {
   GraduationCap,
   Satellite,
   ArrowRight,
-  Box
+  Box,
+  BrainCircuit
 } from 'lucide-react';
 import SpaceDust from './SpaceDust';
 import { useSound } from '../contexts/SoundContext';
@@ -85,6 +86,16 @@ const modules = [
     color: '#FF4400',
     link: '/ar-lab',
     status: 'BETA'
+  },
+  {
+    id: 'mission-sim',
+    title: 'Mission Simulator',
+    subtitle: 'Flight Control',
+    description: 'Take command of high-stakes space missions.',
+    icon: BrainCircuit,
+    color: '#F97316',
+    link: '/simulator',
+    status: 'TRAINING'
   }
 ];
 
@@ -110,7 +121,7 @@ const TheBridge = () => {
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-[#020408] text-white font-sans selection:bg-cyan-500/30">
-      
+
       {/* 1. Background Visuals */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#0a1525] via-[#020408] to-black z-0" />
       <SpaceDust />
@@ -156,21 +167,21 @@ const TheBridge = () => {
       {/* 2. Responsive Grid Layout */}
       <div className="absolute inset-0 z-30 flex items-center justify-center p-4 pt-24 pb-12 overflow-y-auto scrollbar-hide">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-7xl mx-auto w-full">
-            {modules.map((mod) => {
-                const isHovered = hoveredCard === mod.id;
-                const isClicked = clickedCard === mod.id;
+          {modules.map((mod) => {
+            const isHovered = hoveredCard === mod.id;
+            const isClicked = clickedCard === mod.id;
 
-                return (
-                    <motion.div
-                        key={mod.id}
-                        layoutId={`card-container-${mod.id}`}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.3 }}
-                        onClick={() => handleCardClick(mod)}
-                        onMouseEnter={() => handleMouseEnter(mod.id)}
-                        onMouseLeave={() => setHoveredCard(null)}
-                        className={`
+            return (
+              <motion.div
+                key={mod.id}
+                layoutId={`card-container-${mod.id}`}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3 }}
+                onClick={() => handleCardClick(mod)}
+                onMouseEnter={() => handleMouseEnter(mod.id)}
+                onMouseLeave={() => setHoveredCard(null)}
+                className={`
                             group relative h-48 w-full
                             bg-[#0a0f18]/80 backdrop-blur-xl
                             border border-white/5 rounded-xl overflow-hidden
@@ -179,54 +190,54 @@ const TheBridge = () => {
                             cursor-pointer transition-all duration-300
                             ${hoveredCard && !isHovered ? 'blur-[2px] opacity-50 scale-95' : 'opacity-100'}
                         `}
-                        style={{
-                           borderColor: isHovered ? mod.color : 'rgba(255,255,255,0.05)'
-                        }}
-                    >
-                        {/* Colored Accent Line (Top) */}
-                        <div className="absolute top-0 left-0 w-full h-1 bg-white/10">
-                            <div
-                            className="h-full transition-all duration-500 ease-out"
-                            style={{
-                                width: isHovered ? '100%' : '0%',
-                                backgroundColor: mod.color
-                            }}
-                            />
-                        </div>
+                style={{
+                  borderColor: isHovered ? mod.color : 'rgba(255,255,255,0.05)'
+                }}
+              >
+                {/* Colored Accent Line (Top) */}
+                <div className="absolute top-0 left-0 w-full h-1 bg-white/10">
+                  <div
+                    className="h-full transition-all duration-500 ease-out"
+                    style={{
+                      width: isHovered ? '100%' : '0%',
+                      backgroundColor: mod.color
+                    }}
+                  />
+                </div>
 
-                        {/* Content */}
-                        <div className="p-6 h-full flex flex-col justify-between relative z-10">
-                            <div className="flex justify-between items-start">
-                                <div className="p-2 rounded-md bg-white/5 text-white/70 group-hover:bg-white/10 transition-colors" style={{ color: isHovered ? mod.color : undefined }}>
-                                    <mod.icon size={24} />
-                                </div>
-                                <div className="flex items-center gap-2">
-                                     <div className={`w-1.5 h-1.5 rounded-full ${isHovered ? 'animate-pulse' : ''}`} style={{ backgroundColor: mod.color }} />
-                                     <span className="text-[10px] font-mono font-bold text-white/30 tracking-wider">{mod.status}</span>
-                                </div>
-                            </div>
+                {/* Content */}
+                <div className="p-6 h-full flex flex-col justify-between relative z-10">
+                  <div className="flex justify-between items-start">
+                    <div className="p-2 rounded-md bg-white/5 text-white/70 group-hover:bg-white/10 transition-colors" style={{ color: isHovered ? mod.color : undefined }}>
+                      <mod.icon size={24} />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-1.5 h-1.5 rounded-full ${isHovered ? 'animate-pulse' : ''}`} style={{ backgroundColor: mod.color }} />
+                      <span className="text-[10px] font-mono font-bold text-white/30 tracking-wider">{mod.status}</span>
+                    </div>
+                  </div>
 
-                            <div>
-                                <div className="text-[10px] font-mono text-white/40 mb-1 tracking-widest uppercase">{mod.subtitle}</div>
-                                <h3 className="text-xl font-header font-bold text-white uppercase tracking-wider mb-2 group-hover:text-cyan-100 transition-colors">
-                                    {mod.title}
-                                </h3>
-                                <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-y-2 group-hover:translate-y-0">
-                                    {mod.description}
-                                </p>
-                            </div>
-                        </div>
-                        
-                         {/* Hover Arrow */}
-                         <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
-                             <ArrowRight size={18} style={{ color: mod.color }} />
-                         </div>
-                    </motion.div>
-                );
-            })}
+                  <div>
+                    <div className="text-[10px] font-mono text-white/40 mb-1 tracking-widest uppercase">{mod.subtitle}</div>
+                    <h3 className="text-xl font-header font-bold text-white uppercase tracking-wider mb-2 group-hover:text-cyan-100 transition-colors">
+                      {mod.title}
+                    </h3>
+                    <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-y-2 group-hover:translate-y-0">
+                      {mod.description}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Hover Arrow */}
+                <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
+                  <ArrowRight size={18} style={{ color: mod.color }} />
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       </div>
-      
+
     </div>
   );
 };

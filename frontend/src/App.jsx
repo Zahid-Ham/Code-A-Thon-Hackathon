@@ -16,6 +16,7 @@ import {
 import MissionTimelineView from './views/MissionTimelineView';
 import AcademyView from './views/AcademyView';
 import ARSpaceLabView from './views/ARSpaceLabView';
+import MissionSimulator from './components/MissionSimulator/MissionSimulator';
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
               <Route path="/academy" element={<AcademyView />} />
               <Route path="/terra" element={<TerraVisionPlaceholder />} />
               <Route path="/ar-lab" element={<ARSpaceLabView />} />
+              <Route path="/simulator" element={<MissionSimulator />} />
             </Route>
           </Routes>
         </SoundProvider>
