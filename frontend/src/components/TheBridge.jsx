@@ -7,7 +7,7 @@ import {
   Globe,
   Clock,
   GraduationCap,
-  Satellite,
+
   ArrowRight,
   Box,
   BrainCircuit
@@ -67,16 +67,7 @@ const modules = [
     link: '/academy',
     status: 'OPEN'
   },
-  {
-    id: 'terra-vision',
-    title: 'Terra-Vision',
-    subtitle: 'Planet Health',
-    description: 'Satellite imagery analysis of crop & climate health.',
-    icon: Satellite,
-    color: '#AA00FF',
-    link: '/terra',
-    status: 'READY'
-  },
+
   {
     id: 'ar-lab',
     title: 'AR Space Lab',
