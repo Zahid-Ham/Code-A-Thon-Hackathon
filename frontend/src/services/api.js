@@ -4,7 +4,7 @@ import axios from 'axios';
 const LL2_BASE_URL = 'https://ll.thespacedevs.com/2.3.0';
 const NASA_BASE_URL = 'https://api.nasa.gov/planetary/apod';
 const NASA_API_KEY = 'DEMO_KEY'; // In production, use environment variable
-const LOCAL_API_URL = 'http://localhost:5000/api';
+const LOCAL_API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 export const fetchMissionsByYear = async (year) => {
     try {
