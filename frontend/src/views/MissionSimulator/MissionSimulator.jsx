@@ -7,6 +7,7 @@ import WhatIfChatbot from './WhatIfChatbot';
 import './MissionSimulator.css';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, Activity, Play, BarChart2, Shield, DollarSign, BrainCircuit, ChevronRight, Wind, Zap, AlertOctagon, Globe2 } from 'lucide-react';
+import { API_BASE_URL } from '../../services/api';
 
 // Animation Variants
 const fadeIn = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.5 } } };
@@ -72,7 +73,7 @@ const MissionSimulator = () => {
 
             // Fetch AI Historical Context
             try {
-                const res = await fetch('http://localhost:5000/api/mission-history', {
+                const res = await fetch(`${API_BASE_URL}/mission-history`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

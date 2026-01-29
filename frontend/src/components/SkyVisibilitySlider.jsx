@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ReactCompareSlider, ReactCompareSliderImage } from 'react-compare-slider';
 import { Eye } from 'lucide-react';
+import { API_BASE_URL } from '../services/api';
 
 const SkyVisibilitySlider = ({ eventData }) => {
     const [cityImage, setCityImage] = useState('/city_sky.png');
@@ -12,7 +13,7 @@ const SkyVisibilitySlider = ({ eventData }) => {
         setLoading(true);
         try {
             // 1. Generate City View (Default Style - simulates light pollution often)
-            const cityRes = await fetch('http://localhost:5000/api/star-chart', {
+            const cityRes = await fetch(`${API_BASE_URL}/star-chart`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
@@ -25,7 +26,7 @@ const SkyVisibilitySlider = ({ eventData }) => {
             const cityData = await cityRes.json();
 
             // 2. Generate Dark Sky View (Navy Style - darker background, better contrast for stars)
-            const darkRes = await fetch('http://localhost:5000/api/star-chart', {
+            const darkRes = await fetch(`${API_BASE_URL}/star-chart`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 

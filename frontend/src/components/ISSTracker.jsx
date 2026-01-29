@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Eye, Navigation, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { API_BASE_URL } from '../services/api';
 
 const ISSTracker = ({ userLocation }) => {
     const [nextPass, setNextPass] = useState(null);
@@ -14,7 +15,7 @@ const ISSTracker = ({ userLocation }) => {
         const fetchPasses = async () => {
             try {
                 // ISS ID = 25544
-                const res = await fetch(`http://localhost:5000/api/satellite/visual-passes/25544?lat=${userLocation.lat}&lng=${userLocation.lng}`);
+                const res = await fetch(`${API_BASE_URL}/satellite/visual-passes/25544?lat=${userLocation.lat}&lng=${userLocation.lng}`);
                 const data = await res.json();
                 
                 if (data.passes && data.passes.length > 0) {

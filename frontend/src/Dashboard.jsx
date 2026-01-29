@@ -6,13 +6,15 @@ import Sun3D from './components/Sun3D';
 import Earth3D from './components/Earth3D';
 import Starfield from './components/Starfield';
 
+import { API_BASE_URL } from './services/api';
+
 const Dashboard = () => {
   const [isImpacting, setIsImpacting] = useState(false);
   const [timeline, setTimeline] = useState(0);
   const [solarData, setSolarData] = useState({ classType: 'LOADING...', activeRegionNum: '---' });
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/space-weather')
+    fetch(`${API_BASE_URL}/space-weather`)
       .then(res => res.json())
       .then(data => {
         setSolarData(data);

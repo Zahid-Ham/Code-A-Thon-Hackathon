@@ -19,6 +19,7 @@ import SpaceExam from '../components/SpaceExam';
 import AcademyInfographics from '../components/AcademyInfographics';
 import MissionStoryLine from '../components/MissionStoryLine';
 import { missionBriefings } from '../data/learningData';
+import { API_BASE_URL } from '../services/api';
 
 const AcademyView = () => {
     const navigate = useNavigate();
@@ -31,7 +32,7 @@ const AcademyView = () => {
     useEffect(() => {
         const fetchBriefings = async () => {
             try {
-                const res = await fetch('http://localhost:5000/api/academy/briefings');
+                const res = await fetch(`${API_BASE_URL}/academy/briefings`);
                 const data = await res.json();
                 setBriefings(data);
             } catch (err) {

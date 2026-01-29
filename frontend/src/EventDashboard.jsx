@@ -9,6 +9,7 @@ import RocketOverlay from './components/RocketOverlay';
 
 import ISSTracker from './components/ISSTracker';
 import IntelligenceOverlay from './components/IntelligenceOverlay';
+import { API_BASE_URL } from './services/api';
 
 const EventDashboard = () => {
     const globeEl = useRef();
@@ -165,7 +166,7 @@ const EventDashboard = () => {
             }
 
             try {
-                const res = await fetch('http://localhost:5000/api/celestial-events');
+                const res = await fetch(`${API_BASE_URL}/celestial-events`);
                 const data = await res.json();
 
                 const processedEvents = data.map(evt => ({
@@ -301,7 +302,7 @@ const EventDashboard = () => {
                  const DEMO_TLE2 = "2 25544  51.6431 123.4567 0001234 123.4567 236.5432 15.50000000456789";
                  
                  try {
-                     const res = await fetch('http://localhost:5000/api/visibility-map', {
+                     const res = await fetch(`${API_BASE_URL}/visibility-map`, {
                          method: 'POST',
                          headers: { 'Content-Type': 'application/json' },
                          body: JSON.stringify({

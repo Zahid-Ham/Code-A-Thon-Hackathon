@@ -4,6 +4,8 @@ const OrbitalAtlasContext = createContext();
 
 export const useOrbitalAtlas = () => useContext(OrbitalAtlasContext);
 
+import { API_BASE_URL } from '../services/api';
+
 export const OrbitalAtlasProvider = ({ children }) => {
   const [satellites, setSatellites] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -12,7 +14,7 @@ export const OrbitalAtlasProvider = ({ children }) => {
 
   // Fetch Catalog
   useEffect(() => {
-    fetch('http://localhost:5000/api/orbital-atlas/satellites?limit=2000')
+    fetch(`${API_BASE_URL}/orbital-atlas/satellites?limit=2000`)
       .then(res => res.json())
       .then(data => {
         setSatellites(data);
@@ -28,7 +30,7 @@ export const OrbitalAtlasProvider = ({ children }) => {
   useEffect(() => {
     if (selectedSat) {
         setLoading(true);
-        fetch(`http://localhost:5000/api/orbital-atlas/satellite/${selectedSat.satelliteId}`)
+        fetch(`${API_BASE_URL}/orbital-atlas/satellite/${selectedSat.satelliteId}`)
             .then(res => res.json())
             .then(data => {
                 setSelectedDetails(data);

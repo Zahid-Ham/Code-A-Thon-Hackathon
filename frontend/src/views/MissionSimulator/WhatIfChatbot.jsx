@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Cpu, Terminal, Zap } from 'lucide-react';
+import { API_BASE_URL } from '../../services/api';
 
 const WhatIfChatbot = ({ scenario, userChoice, outcome }) => {
     const [messages, setMessages] = useState([
@@ -30,7 +31,7 @@ const WhatIfChatbot = ({ scenario, userChoice, outcome }) => {
         setLoading(true);
 
         try {
-            const res = await fetch('http://localhost:5000/api/mission-whatif', {
+            const res = await fetch(`${API_BASE_URL}/mission-whatif`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

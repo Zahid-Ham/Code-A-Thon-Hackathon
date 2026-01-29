@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { MessageSquare, Mic, MicOff, Volume2, VolumeX, X, Send } from 'lucide-react';
 
+import { API_BASE_URL } from '../services/api';
+
 const SpaceChatbot = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([
@@ -76,7 +78,7 @@ const SpaceChatbot = () => {
         setIsLoading(true);
 
         try {
-            const res = await axios.post('/api/chat', { message: msgText });
+            const res = await axios.post(`${API_BASE_URL}/chat`, { message: msgText });
             const botReply = res.data.reply || "I am having trouble connecting to the star network.";
 
             setMessages(prev => [...prev, { role: 'system', content: botReply }]);

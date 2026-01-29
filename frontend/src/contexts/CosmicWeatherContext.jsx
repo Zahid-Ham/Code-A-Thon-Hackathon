@@ -1,6 +1,8 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 
+import { API_BASE_URL } from '../services/api';
+
 const CosmicWeatherContext = createContext();
 
 export const useCosmicWeather = () => useContext(CosmicWeatherContext);
@@ -20,7 +22,7 @@ export const CosmicWeatherProvider = ({ children }) => {
     try {
       // Don't set loading=true on background refetches to avoid flicker
       // setLoading(true); 
-      const res = await axios.get('http://localhost:5000/api/space-weather');
+      const res = await axios.get(`${API_BASE_URL}/space-weather`);
       setWeatherData(res.data);
       setLastUpdated(new Date());
       setIsStale(false);

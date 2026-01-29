@@ -4,12 +4,12 @@ import axios from 'axios';
 const LL2_BASE_URL = 'https://ll.thespacedevs.com/2.3.0';
 const NASA_BASE_URL = 'https://api.nasa.gov/planetary/apod';
 const NASA_API_KEY = 'DEMO_KEY'; // In production, use environment variable
-const LOCAL_API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-console.log("🚀 [SpaceScope] API Connector Initialized. Target:", LOCAL_API_URL);
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+console.log("🚀 [SpaceScope] API Connector Initialized. Target:", API_BASE_URL);
 
 export const fetchMissionsByYear = async (year) => {
     try {
-        const response = await axios.get(`${LOCAL_API_URL}/missions?year=${year}`);
+        const response = await axios.get(`${API_BASE_URL}/missions?year=${year}`);
         return response.data;
     } catch (error) {
         console.error("Failed to fetch missions by year:", error);
@@ -19,7 +19,7 @@ export const fetchMissionsByYear = async (year) => {
 
 export const fetchMissionIntel = async (mission) => {
     try {
-        const response = await axios.post(`${LOCAL_API_URL}/mission-intel`, {
+        const response = await axios.post(`${API_BASE_URL}/mission-intel`, {
             name: mission.name,
             description: mission.description,
             date: mission.date,

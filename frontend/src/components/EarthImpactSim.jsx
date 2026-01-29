@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Globe from 'react-globe.gl';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, ShieldAlert, Thermometer, Droplets, Wind, Info, X, Zap } from 'lucide-react';
+import { API_BASE_URL } from '../services/api';
 
 const EarthImpactSim = () => {
     const [countries, setCountries] = useState({ features: [] });
@@ -26,7 +27,7 @@ const EarthImpactSim = () => {
 
         const fetchTelemetry = async () => {
             try {
-                const res = await fetch('http://localhost:5000/api/data-lab/telemetry');
+                const res = await fetch(`${API_BASE_URL}/data-lab/telemetry`);
                 const data = await res.json();
                 setTelemetry(prev => ({
                     ...data,
@@ -91,7 +92,7 @@ const EarthImpactSim = () => {
 
         try {
             setSelectedReport({ name: countryName, code: countryCode, loading: true }); // Set loading state
-            const res = await fetch('http://localhost:5000/api/data-lab/report', {
+            const res = await fetch(`${API_BASE_URL}/data-lab/report`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

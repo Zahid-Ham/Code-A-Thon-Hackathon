@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Crosshair, Eye, Clock, Activity, X, Radio, Target, Zap } from 'lucide-react';
 import VisibilityTimeline from './VisibilityTimeline';
 import TacticalMap from './TacticalMap';
+import { API_BASE_URL } from '../services/api';
 
 const IntelligenceOverlay = ({ selectedEvent, onClose, userLocation, onTimeSelect, visibilityMap }) => {
     // Determine target color based on event type
@@ -45,7 +46,7 @@ const IntelligenceOverlay = ({ selectedEvent, onClose, userLocation, onTimeSelec
                  const DEMO_TLE2 = "2 25544  51.6431 123.4567 0001234 123.4567 236.5432 15.50000000456789";
     
                  try {
-                    const res = await fetch('http://localhost:5000/api/visibility-forecast', {
+                    const res = await fetch(`${API_BASE_URL}/visibility-forecast`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -70,7 +71,7 @@ const IntelligenceOverlay = ({ selectedEvent, onClose, userLocation, onTimeSelec
         // 2. Fetch AI Impact Analysis
         const fetchImpact = async () => {
             try {
-                const res = await fetch('http://localhost:5000/api/impact-analysis', {
+                const res = await fetch(`${API_BASE_URL}/impact-analysis`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
