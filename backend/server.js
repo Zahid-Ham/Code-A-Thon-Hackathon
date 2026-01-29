@@ -24,6 +24,12 @@ const orbitalService = new OrbitalAtlasService();
 app.use(cors());
 app.use(express.json());
 
+// Request Logger (Debug Deployment)
+app.use((req, res, next) => {
+    console.log(`[INCOMING] ${req.method} ${req.originalUrl}`);
+    next();
+});
+
 // --- MISSION DATA ARCHIVE (CSV) ---
 const CSV_PATH = path.join(__dirname, 'space_missions1__1_.csv');
 
